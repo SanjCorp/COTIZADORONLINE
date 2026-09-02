@@ -1,0 +1,68 @@
+using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using SanjCorp3D.Api.Contracts;
+using SanjCorp3D.Api.Data;
+using SanjCorp3D.Api.Identity;
+using SanjCorp3D.Api.Models;
+
+namespace SanjCorp3D.Api.Controllers;
+
+[ApiController, Authorize(Roles = AppRoles.Administrator), Route("api/backup")]
+public sealed class BackupController(AppDbContext db) : ControllerBase
+{
+    [HttpGet]
+    public async Task<IActionResult> Export(CancellationToken cancellationToken)
+    {
+        var printers = await db.Printers.AsNoTracking().OrderBy(x => x.Id).ToListAsync(cancellationToken);
+        var consumables = await db.Consumables.AsNoTracking().OrderBy(x => x.Id).ToListAsync(cancellationToken);
+        var materials = await db.Materials.AsNoTracking().OrderBy(x => x.Id).ToListAsync(cancellationToken);
+        var quotes = await db.Quotes.AsNoTracking().AsSplitQuery().Include(x => x.Consumables).Include(x => x.Materials).Include(x => x.Sale).OrderBy(x => x.Id).ToListAsync(cancellationToken);
+        var settings = await db.BusinessSettings.AsNoTracking().ToDictionaryAsync(x => x.Key, x => x.Value, cancellationToken);
+        var backup = new BackupDocument(1, DateTime.UtcNow,
+            printers.Select(x => new BackupPrinter(x.Name,x.BuildX,x.BuildY,x.BuildZ,x.Nozzle,x.Speed,x.PowerWatts,x.HourlyCost,x.IsDefault,x.Active)).ToList(),
+            consumables.Select(x => new BackupConsumable(x.Name,x.Category,x.Material,x.Color,x.PricePerUnit,x.Density,x.IsDefault,x.Active,x.StockQuantity)).ToList(),
+            materials.Select(x => new BackupMaterial(x.Name,x.Category,x.Unit,x.UnitPrice,x.Active)).ToList(),
+            quotes.Select(x => new BackupQuote(x.OrderCode,x.CreatedAtUtc,x.Customer,x.ProjectName,x.PrinterName,x.PrintHours,x.Quantity,x.AdditionalManualCost,x.ProfitMultiplier,x.Notes,x.TotalWeight,x.MaterialCost,x.ElectricityCost,x.MachineCost,x.MaintenanceCost,x.LaborCost,x.AdditionalCost,x.FunctionalSurcharge,x.Subtotal,x.ProfitAmount,x.TaxAmount,x.RecommendedPrice,
+                x.Consumables.Select(v => new BackupQuoteConsumable(v.LegacyConsumableId,v.Name,v.Category,v.Material,v.Color,v.Grams,v.PricePerUnit,v.Density,v.LineCost)).ToList(),
+                x.Materials.Select(v => new BackupQuoteMaterial(v.LegacyMaterialId,v.Name,v.Quantity,v.UnitPrice,v.LineCost)).ToList(),
+                x.Sale is null ? null : new BackupSale(x.Sale.SoldAtUtc,x.Sale.SaleAmount))).ToList(), settings);
+        return File(JsonSerializer.SerializeToUtf8Bytes(backup, new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true }), "application/json", $"sanjcorp3d-{DateTime.UtcNow:yyyyMMdd-HHmm}.json");
+    }
+
+    [HttpPost("restore")]
+    public async Task<IActionResult> Restore(RestoreBackupRequest request, CancellationToken cancellationToken)
+    {
+        if (request.Confirmation != "RESTAURAR") return BadRequest(new { message = "Escribe RESTAURAR para confirmar." });
+        if (request.Backup.Version != 1) return BadRequest(new { message = "La versión del respaldo no es compatible." });
+        if (request.Backup.Printers is null || request.Backup.Consumables is null || request.Backup.Materials is null || request.Backup.Quotes is null || request.Backup.Settings is null)
+            return BadRequest(new { message = "El archivo de respaldo está incompleto." });
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await db.Sales.ExecuteDeleteAsync(cancellationToken);
+        await db.QuoteConsumables.ExecuteDeleteAsync(cancellationToken);
+        await db.QuoteMaterials.ExecuteDeleteAsync(cancellationToken);
+        await db.Quotes.ExecuteDeleteAsync(cancellationToken);
+        await db.Consumables.ExecuteDeleteAsync(cancellationToken);
+        await db.Materials.ExecuteDeleteAsync(cancellationToken);
+        await db.Printers.ExecuteDeleteAsync(cancellationToken);
+        await db.BusinessSettings.ExecuteDeleteAsync(cancellationToken);
+
+        db.Printers.AddRange(request.Backup.Printers.Select(x => new Printer { Name=x.Name,BuildX=x.BuildX,BuildY=x.BuildY,BuildZ=x.BuildZ,Nozzle=x.Nozzle,Speed=x.Speed,PowerWatts=x.PowerWatts,HourlyCost=x.HourlyCost,IsDefault=x.IsDefault,Active=x.Active }));
+        db.Consumables.AddRange(request.Backup.Consumables.Select(x => new Consumable { Name=x.Name,Category=x.Category,Material=x.Material,Color=x.Color,PricePerUnit=x.PricePerUnit,Density=x.Density,IsDefault=x.IsDefault,Active=x.Active,StockQuantity=x.StockQuantity }));
+        db.Materials.AddRange(request.Backup.Materials.Select(x => new ExtraMaterial { Name=x.Name,Category=x.Category,Unit=x.Unit,UnitPrice=x.UnitPrice,Active=x.Active }));
+        db.BusinessSettings.AddRange(request.Backup.Settings.Select(x => new BusinessSetting { Key=x.Key,Value=x.Value }));
+        foreach (var source in request.Backup.Quotes)
+        {
+            var quote = new Quote { OrderCode=source.OrderCode,CreatedAtUtc=source.CreatedAtUtc,Customer=source.Customer,ProjectName=source.ProjectName,PrinterName=source.PrinterName,PrintHours=source.PrintHours,Quantity=source.Quantity,AdditionalManualCost=source.AdditionalManualCost,ProfitMultiplier=source.ProfitMultiplier,Notes=source.Notes,TotalWeight=source.TotalWeight,MaterialCost=source.MaterialCost,ElectricityCost=source.ElectricityCost,MachineCost=source.MachineCost,MaintenanceCost=source.MaintenanceCost,LaborCost=source.LaborCost,AdditionalCost=source.AdditionalCost,FunctionalSurcharge=source.FunctionalSurcharge,Subtotal=source.Subtotal,ProfitAmount=source.ProfitAmount,TaxAmount=source.TaxAmount,RecommendedPrice=source.RecommendedPrice };
+            quote.Consumables.AddRange(source.Consumables.Select(x => new QuoteConsumable { LegacyConsumableId=x.LegacyConsumableId,Name=x.Name,Category=x.Category,Material=x.Material,Color=x.Color,Grams=x.Grams,PricePerUnit=x.PricePerUnit,Density=x.Density,LineCost=x.LineCost }));
+            quote.Materials.AddRange(source.Materials.Select(x => new QuoteMaterial { LegacyMaterialId=x.LegacyMaterialId,Name=x.Name,Quantity=x.Quantity,UnitPrice=x.UnitPrice,LineCost=x.LineCost }));
+            if (source.Sale is not null) quote.Sale = new Sale { SoldAtUtc=source.Sale.SoldAtUtc,SaleAmount=source.Sale.SaleAmount };
+            db.Quotes.Add(quote);
+        }
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return Ok(new { message = "Respaldo restaurado correctamente.", quotes = request.Backup.Quotes.Count });
+    }
+}

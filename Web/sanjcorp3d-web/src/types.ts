@@ -1,0 +1,75 @@
+export type Profile = {
+  id: string
+  userName: string
+  email?: string
+  displayName: string
+  twoFactorEnabled: boolean
+  roles: string[]
+}
+
+export type Dashboard = { quotes: number; salesThisMonth: number; revenueThisMonth: number; lowStock: number }
+
+export type Printer = {
+  id: number; name: string; buildX: number; buildY: number; buildZ: number; nozzle: number
+  speed: number; powerWatts: number; hourlyCost: number; isDefault: boolean; active: boolean
+}
+
+export type Consumable = {
+  id: number; name: string; category: string; material: string; color: string; pricePerUnit: number
+  density: number; isDefault: boolean; active: boolean; stockQuantity: number
+}
+
+export type ExtraMaterial = { id: number; name: string; category: string; unit: string; unitPrice: number; active: boolean }
+
+export type BusinessSettings = {
+  businessName: string; currencyName: string; currencySymbol: string; electricityPerKwh: number
+  maintenancePerPrint: number; defaultProfitMultiplier: number; taxPercent: number; roundTo: number; decimalPlaces: number
+}
+
+export type ConsumableUsage = { consumableId: number; grams: number }
+export type MaterialUsage = { materialId: number; quantity: number }
+
+export type QuoteRequest = {
+  customer: string; projectName: string; printerId: number; printHours: number; quantity: number
+  additionalManualCost: number; profitMultiplier: number; notes: string
+  consumables: ConsumableUsage[]; materials: MaterialUsage[]
+}
+
+export type QuoteCalculation = {
+  totalWeight: number; materialCost: number; electricityCost: number; maintenanceCost: number
+  additionalCost: number; subtotal: number; profitAmount: number; taxAmount: number; recommendedPrice: number
+}
+
+export type QuoteSummary = {
+  id: number; orderCode: string; createdAtUtc: string; customer: string; projectName: string
+  printerName: string; totalWeight: number; costTotal: number; recommendedPrice: number; soldAtUtc?: string
+}
+
+export type QuoteDetail = {
+  id: number; orderCode: string; createdAtUtc: string; customer: string; projectName: string; printerName: string
+  printHours: number; quantity: number; additionalManualCost: number; profitMultiplier: number; notes: string
+  totalWeight: number; materialCost: number; electricityCost: number; machineCost: number; maintenanceCost: number
+  laborCost: number; additionalCost: number; functionalSurcharge: number; subtotal: number; profitAmount: number
+  taxAmount: number; recommendedPrice: number
+  consumables: Array<{ id: number; legacyConsumableId: number; name: string; category: string; material: string; color: string; grams: number; pricePerUnit: number; density: number; lineCost: number }>
+  materials: Array<{ id: number; legacyMaterialId: number; name: string; quantity: number; unitPrice: number; lineCost: number }>
+  sale?: { id: number; soldAtUtc: string; saleAmount: number }
+}
+
+export type Report = {
+  quoteCount: number; totalCost: number; projectedRevenue: number; projectedProfit: number
+  saleCount: number; salesRevenue: number; salesProfit: number; sales: SaleSummary[]
+  consumableDistribution: Array<{ name: string; grams: number }>; costDistribution: Array<{ name: string; value: number }>
+}
+
+export type SaleSummary = {
+  id: number; quoteId: number; orderCode: string; soldAtUtc: string; customer: string
+  projectName: string; costTotal: number; saleAmount: number; profit: number
+}
+
+export type UserAccount = {
+  id: string; userName: string; displayName: string; email?: string; active: boolean; createdAtUtc: string
+  lastLoginAtUtc?: string; twoFactorEnabled: boolean; role: string
+}
+
+export type TwoFactorSetup = { sharedKey: string; authenticatorUri: string }

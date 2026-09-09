@@ -87,7 +87,9 @@ app.Run();
 
 static string ResolveConnectionString(IConfiguration configuration)
 {
-    var value = configuration.GetConnectionString("PostgreSql") ?? configuration["DATABASE_URL"];
+    // In hosted environments the provider injects DATABASE_URL. Prefer it over
+    // the development connection string that remains in appsettings.json.
+    var value = configuration["DATABASE_URL"] ?? configuration.GetConnectionString("PostgreSql");
     if (string.IsNullOrWhiteSpace(value)) throw new InvalidOperationException("Falta ConnectionStrings:PostgreSql o DATABASE_URL.");
     if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || (uri.Scheme != "postgres" && uri.Scheme != "postgresql")) return value;
     var credentials = uri.UserInfo.Split(':', 2);

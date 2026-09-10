@@ -16,7 +16,12 @@ export type Printer = {
 
 export type Consumable = {
   id: number; name: string; category: string; material: string; color: string; pricePerUnit: number
-  density: number; isDefault: boolean; active: boolean; stockQuantity: number
+  density: number; isDefault: boolean; active: boolean; stockQuantity: number; stockGrams: number; lowStockGrams: number
+}
+
+export type InventoryAlert = {
+  id: number; name: string; category: string; material: string; color: string
+  stockGrams: number; lowStockGrams: number; severity: 'out' | 'low'; message: string
 }
 
 export type ExtraMaterial = { id: number; name: string; category: string; unit: string; unitPrice: number; active: boolean }

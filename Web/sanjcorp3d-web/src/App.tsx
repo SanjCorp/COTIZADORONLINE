@@ -1,9 +1,10 @@
 import { FormEvent, useEffect, useState } from 'react'
 import {
-  BarChart3, Boxes, Calculator, CircleHelp, FileClock, Gauge, Layers3, LockKeyhole,
+  AlertTriangle, BarChart3, Bell, Boxes, Calculator, CircleHelp, FileClock, Gauge, Layers3, LockKeyhole,
   LogOut, Menu, PackageSearch, Printer, Settings, ShieldCheck, Users, X,
 } from 'lucide-react'
 import { api, type Profile } from './api'
+import type { InventoryAlert } from './types'
 import { ConsumablesPage, MaterialsPage, PrintersPage } from './pages/CatalogPages'
 import { DashboardPage } from './pages/DashboardPage'
 import { HelpPage } from './pages/HelpPage'
@@ -69,6 +70,26 @@ function Application({ profile, onProfileChange, onLogout }: { profile: Profile;
   return <div className="app-shell">
     {mobileOpen && <button className="sidebar-scrim" aria-label="Cerrar menú" onClick={() => setMobileOpen(false)} />}
     <aside className={`sidebar ${mobileOpen ? 'open' : ''}`}><div className="sidebar-brand"><div className="brand-mark small-mark"><Boxes size={23} /></div><div><strong>SANJ CORP</strong><span>3D OPERATIONS</span></div><button className="icon mobile-close" onClick={() => setMobileOpen(false)}><X size={20} /></button></div><nav>{navigation.filter(item => !item.admin || isAdmin).map(({ key, label, icon: Icon }) => <button key={key} className={page === key ? 'active' : ''} onClick={() => goTo(key)}><Icon size={18} /><span>{label}</span></button>)}</nav><div className="sidebar-footer"><div className="signed-user"><div className="avatar">{profile.displayName.slice(0, 2).toUpperCase()}</div><div><strong>{profile.displayName}</strong><span>{profile.roles.map(roleLabel).join(' · ')}</span></div></div><button className="logout" onClick={onLogout}><LogOut size={17} />Cerrar sesión</button></div></aside>
-    <div className="workspace"><header className="topbar"><button className="icon menu-button" onClick={() => setMobileOpen(true)}><Menu size={21} /></button><div><span className="connection-dot" />Servidor conectado</div><button className="profile-chip" onClick={() => goTo('settings')}><span>{profile.displayName}</span><div className="avatar mini">{profile.displayName.slice(0, 2).toUpperCase()}</div></button></header><main className="page-content">{content}</main></div>
+    <div className="workspace"><header className="topbar"><button className="icon menu-button" onClick={() => setMobileOpen(true)}><Menu size={21} /></button><div><span className="connection-dot" />Servidor conectado</div><InventoryAlerts onOpen={() => goTo('consumables')} /><button className="profile-chip" onClick={() => goTo('settings')}><span>{profile.displayName}</span><div className="avatar mini">{profile.displayName.slice(0, 2).toUpperCase()}</div></button></header><main className="page-content">{content}</main></div>
+  </div>
+}
+
+function InventoryAlerts({ onOpen }: { onOpen: () => void }) {
+  const [alerts, setAlerts] = useState<InventoryAlert[]>([])
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    const load = () => { api.alerts().then(next => { if (active) setAlerts(next) }).catch(() => undefined) }
+    load()
+    const interval = window.setInterval(load, 30_000)
+    const listener = () => load()
+    window.addEventListener('inventory-changed', listener)
+    return () => { active = false; window.clearInterval(interval); window.removeEventListener('inventory-changed', listener) }
+  }, [])
+
+  return <div className="alerts-menu">
+    <button className={`icon ghost alerts-button ${alerts.length > 0 ? 'has-alerts' : ''}`} aria-label={`Alarmas de inventario${alerts.length ? `: ${alerts.length}` : ''}`} aria-expanded={open} onClick={() => setOpen(current => !current)}><Bell size={18} />{alerts.length > 0 && <span className="notification-badge">{alerts.length > 99 ? '99+' : alerts.length}</span>}</button>
+    {open && <div className="alerts-popover" role="dialog" aria-label="Alarmas de inventario"><div className="alerts-popover-header"><div><p className="eyebrow">INVENTARIO</p><h3>Alarmas</h3></div><button className="icon ghost" aria-label="Cerrar alarmas" onClick={() => setOpen(false)}><X size={16} /></button></div>{alerts.length === 0 ? <p className="alerts-empty">No hay filamentos bajo el umbral.</p> : <div className="alerts-list">{alerts.map(alert => <button key={alert.id} className={`inventory-alert ${alert.severity}`} onClick={() => { setOpen(false); onOpen() }}><AlertTriangle size={17} /><span><strong>{alert.severity === 'out' ? 'Agotado' : 'Stock bajo'}</strong><small>{alert.message}</small></span></button>)}</div>}</div>}
   </div>
 }

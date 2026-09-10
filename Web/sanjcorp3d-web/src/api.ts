@@ -1,6 +1,6 @@
 import type {
   BusinessSettings, Consumable, Dashboard, ExtraMaterial, Printer, Profile, QuoteCalculation,
-  QuoteDetail, QuoteRequest, QuoteSummary, Report, TwoFactorSetup, UserAccount,
+  QuoteDetail, QuoteRequest, QuoteSummary, Report, TwoFactorSetup, UserAccount, InventoryAlert,
 } from './types'
 
 export type { Dashboard, Profile } from './types'
@@ -58,8 +58,10 @@ export const api = {
   archivePrinter: (id: number) => request<void>(`/api/printers/${id}`, { method: 'DELETE' }),
   consumables: (includeArchived = false) => request<Consumable[]>(`/api/consumables${query({ includeArchived })}`),
   saveConsumable: (item: Consumable) => item.id ? request<Consumable>(`/api/consumables/${item.id}`, { method: 'PUT', body: JSON.stringify(item) }) : request<Consumable>('/api/consumables', { method: 'POST', body: JSON.stringify(item) }),
-  updateStock: (id: number, quantity: number) => request<Consumable>(`/api/consumables/${id}/stock`, { method: 'PATCH', body: JSON.stringify({ quantity }) }),
+  updateStock: (id: number, stockGrams: number, lowStockGrams: number) => request<Consumable>(`/api/consumables/${id}/stock`, { method: 'PATCH', body: JSON.stringify({ stockGrams, lowStockGrams }) }),
+  addStock: (id: number, kilograms: number, grams: number) => request<Consumable>(`/api/consumables/${id}/stock/add`, { method: 'POST', body: JSON.stringify({ kilograms, grams }) }),
   archiveConsumable: (id: number) => request<void>(`/api/consumables/${id}`, { method: 'DELETE' }),
+  alerts: () => request<InventoryAlert[]>('/api/alerts'),
   materials: (includeArchived = false) => request<ExtraMaterial[]>(`/api/materials${query({ includeArchived })}`),
   saveMaterial: (item: ExtraMaterial) => item.id ? request<ExtraMaterial>(`/api/materials/${item.id}`, { method: 'PUT', body: JSON.stringify(item) }) : request<ExtraMaterial>('/api/materials', { method: 'POST', body: JSON.stringify(item) }),
   archiveMaterial: (id: number) => request<void>(`/api/materials/${id}`, { method: 'DELETE' }),

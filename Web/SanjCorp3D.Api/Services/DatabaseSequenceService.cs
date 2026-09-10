@@ -15,6 +15,7 @@ public static class DatabaseSequenceService
             SELECT setval(pg_get_serial_sequence('sanjcorp."QuoteConsumables"', 'Id'), GREATEST(COALESCE((SELECT MAX("Id") FROM sanjcorp."QuoteConsumables"), 0) + 1, 1), false);
             SELECT setval(pg_get_serial_sequence('sanjcorp."QuoteMaterials"', 'Id'), GREATEST(COALESCE((SELECT MAX("Id") FROM sanjcorp."QuoteMaterials"), 0) + 1, 1), false);
             SELECT setval(pg_get_serial_sequence('sanjcorp."Sales"', 'Id'), GREATEST(COALESCE((SELECT MAX("Id") FROM sanjcorp."Sales"), 0) + 1, 1), false);
+            SELECT setval(pg_get_serial_sequence('sanjcorp."SaleConsumables"', 'Id'), GREATEST(COALESCE((SELECT MAX("Id") FROM sanjcorp."SaleConsumables"), 0) + 1, 1), false);
             """;
         return db.Database.ExecuteSqlRawAsync(sql, cancellationToken);
     }

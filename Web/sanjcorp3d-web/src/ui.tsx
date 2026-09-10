@@ -24,6 +24,15 @@ export function number(value: number, digits = 2) {
   return Number(value || 0).toLocaleString('es-BO', { maximumFractionDigits: digits })
 }
 
+export function weight(value: number) {
+  const grams = Math.max(0, Number(value || 0))
+  const kilos = Math.floor(grams / 1000)
+  const remainder = Number((grams - kilos * 1000).toFixed(2))
+  if (kilos > 0 && remainder > 0) return `${number(kilos, 0)} kg ${number(remainder)} g`
+  if (kilos > 0) return `${number(kilos, 0)} kg`
+  return `${number(remainder)} g`
+}
+
 export function roleLabel(role: string) {
   return ({ Administrator: 'Administrador', Sales: 'Ventas', Production: 'Producción', Viewer: 'Consulta' } as Record<string, string>)[role] ?? role
 }

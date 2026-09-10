@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Calculator, CheckCircle2, Plus, RotateCcw, Save, ShoppingBag, Trash2 } from 'lucide-react'
 import { api } from '../api'
 import type { BusinessSettings, Consumable, ConsumableUsage, ExtraMaterial, MaterialUsage, Printer, QuoteCalculation, QuoteRequest, QuoteSummary } from '../types'
-import { Empty, ErrorMessage, Loading, PageHeader, SuccessMessage, money, number } from '../ui'
+import { Empty, ErrorMessage, Loading, PageHeader, SuccessMessage, money, number, weight } from '../ui'
 
 type BaseForm = { customer: string; projectName: string; printerId: number; hours: number; minutes: number; quantity: number; additionalManualCost: number; profitMultiplier: number; notes: string }
 const emptyForm: BaseForm = { customer: '', projectName: '', printerId: 0, hours: 0, minutes: 0, quantity: 1, additionalManualCost: 0, profitMultiplier: 1.3, notes: '' }
@@ -47,7 +47,7 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
   function addConsumable() {
     const item = consumableById.get(selectedConsumable)
     if (!item || grams <= 0) { setError('Selecciona un consumible e indica gramos mayores que cero.'); return }
-    if (item.stockQuantity <= 0) { setError(`No hay existencia de ${item.name} · ${item.material} · ${item.color}. Actualiza su inventario primero.`); return }
+    if ((item.stockGrams ?? item.stockQuantity * 1000) <= 0) { setError(`No hay existencia de ${item.name} · ${item.material} · ${item.color}. Actualiza su inventario primero.`); return }
     setConsumableLines(current => [...current, { consumableId: item.id, grams }]); setGrams(0); setError(''); invalidate()
   }
 
@@ -80,7 +80,7 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
   async function confirmSale() {
     if (!saved || !window.confirm(`¿Confirmar la venta ${saved.orderCode} por ${money(saved.recommendedPrice, settings?.currencySymbol)}?`)) return
     setBusy(true); setError('')
-    try { await api.confirmSale(saved.id); setSold(true); setSuccess('Venta confirmada y agregada al reporte.') }
+    try { await api.confirmSale(saved.id); setSold(true); setSuccess('Venta confirmada y filamento descontado del inventario.'); window.dispatchEvent(new Event('inventory-changed')) }
     catch (reason) { setError((reason as Error).message) }
     finally { setBusy(false) }
   }
@@ -115,7 +115,7 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
         <section className="panel">
           <div className="section-title"><div><span className="step">02</span><h2>Filamentos y resinas</h2></div></div>
           <div className="inline-form consumable-picker">
-            <label>Consumible<select value={selectedConsumable} onChange={e => setSelectedConsumable(Number(e.target.value))}>{consumables.map(x => <option key={x.id} value={x.id}>{x.name} · {x.material} · {x.color} · {x.stockQuantity} disp.</option>)}</select></label>
+            <label>Consumible<select value={selectedConsumable} onChange={e => setSelectedConsumable(Number(e.target.value))}>{consumables.map(x => <option key={x.id} value={x.id}>{x.name} · {x.material} · {x.color} · {weight(x.stockGrams ?? x.stockQuantity * 1000)} disp.</option>)}</select></label>
             <label>Gramos<input type="number" min="0.01" step="0.01" value={grams} onChange={e => setGrams(Number(e.target.value))} /></label>
             <button type="button" onClick={addConsumable}><Plus size={17} />Agregar</button>
           </div>

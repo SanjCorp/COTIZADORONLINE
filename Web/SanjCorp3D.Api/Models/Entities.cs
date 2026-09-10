@@ -28,7 +28,10 @@ public sealed class Consumable : IActiveEntity
     public decimal Density { get; set; }
     public bool IsDefault { get; set; }
     public bool Active { get; set; } = true;
+    // Kept for compatibility with older clients/backups. New code uses StockGrams.
     public int StockQuantity { get; set; }
+    public decimal StockGrams { get; set; }
+    public decimal LowStockGrams { get; set; } = 1000m;
 }
 
 public sealed class ExtraMaterial : IActiveEntity
@@ -106,6 +109,17 @@ public sealed class Sale
     public Quote Quote { get; set; } = null!;
     public DateTime SoldAtUtc { get; set; }
     public decimal SaleAmount { get; set; }
+    public List<SaleConsumable> Consumables { get; set; } = [];
+}
+
+public sealed class SaleConsumable
+{
+    public long Id { get; set; }
+    public long SaleId { get; set; }
+    public Sale Sale { get; set; } = null!;
+    public long ConsumableId { get; set; }
+    public Consumable Consumable { get; set; } = null!;
+    public decimal Grams { get; set; }
 }
 
 public sealed class BusinessSetting

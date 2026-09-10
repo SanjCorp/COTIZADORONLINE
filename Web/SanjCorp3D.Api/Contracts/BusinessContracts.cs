@@ -9,6 +9,10 @@ public sealed record BusinessSettingsDto(
 public sealed record ConsumableUsageRequest(long ConsumableId, decimal Grams);
 public sealed record MaterialUsageRequest(long MaterialId, decimal Quantity);
 
+public sealed record InventoryAlertDto(
+    long Id, string Name, string Category, string Material, string Color,
+    decimal StockGrams, decimal LowStockGrams, string Severity, string Message);
+
 public sealed record QuoteRequest(
     string Customer, string ProjectName, long PrinterId, decimal PrintHours,
     int Quantity, decimal AdditionalManualCost, decimal ProfitMultiplier,

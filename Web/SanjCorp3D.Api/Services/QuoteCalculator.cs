@@ -27,13 +27,24 @@ public static class QuoteCalculator
         decimal pieces = request.Quantity;
         decimal weight = consumables.Sum(x => x.Grams) * pieces;
         decimal material = consumables.Sum(x => x.UnitCost) * pieces;
-        decimal electricity = printer.PowerWatts / 1000m * request.PrintHours * settings.ElectricityPerKwh * pieces;
+
+        // The source spreadsheet works with whole minutes:
+        // kWh = (power in W / 1000) * (print minutes / 60).
+        // The API keeps the public value in hours for compatibility, so convert
+        // it back to minutes before applying the energy formula.
+        decimal printMinutes = decimal.Round(request.PrintHours * 60m, 0, MidpointRounding.AwayFromZero);
+        decimal energyKwh = printer.PowerWatts / 1000m * (printMinutes / 60m);
+        decimal electricity = energyKwh * settings.ElectricityPerKwh * pieces;
         decimal maintenance = settings.MaintenancePerPrint * pieces;
         decimal additional = materials.Sum(x => x.Cost) + request.AdditionalManualCost;
+
+        // Match the spreadsheet order: build the complete cost first, apply the
+        // manually entered multiplier to that cost, then add optional tax.
         decimal subtotal = material + electricity + maintenance + additional;
-        decimal profit = subtotal * (request.ProfitMultiplier - 1m);
-        decimal tax = (subtotal + profit) * settings.TaxPercent / 100m;
-        decimal recommended = settings.RoundTo <= 0 ? subtotal + profit + tax : decimal.Round((subtotal + profit + tax) / settings.RoundTo, 0, MidpointRounding.AwayFromZero) * settings.RoundTo;
+        decimal multipliedTotal = subtotal * request.ProfitMultiplier;
+        decimal profit = multipliedTotal - subtotal;
+        decimal tax = multipliedTotal * settings.TaxPercent / 100m;
+        decimal recommended = settings.RoundTo <= 0 ? multipliedTotal + tax : decimal.Round((multipliedTotal + tax) / settings.RoundTo, 0, MidpointRounding.AwayFromZero) * settings.RoundTo;
         decimal Round(decimal value) => decimal.Round(value, settings.DecimalPlaces, MidpointRounding.AwayFromZero);
         return new(Round(weight), Round(material), Round(electricity), Round(maintenance), Round(additional), Round(subtotal), Round(profit), Round(tax), Round(recommended));
     }

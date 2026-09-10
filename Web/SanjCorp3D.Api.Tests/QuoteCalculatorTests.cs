@@ -48,6 +48,25 @@ public sealed class QuoteCalculatorTests
     }
 
     [Fact]
+    public void Matches_spreadsheet_formula_when_time_is_entered_as_hours_and_minutes()
+    {
+        // The spreadsheet example uses 1,400 minutes (23 h 20 min), 400 W,
+        // 1.10 Bs/kWh, 900 g at 155 Bs/kg, no maintenance and +50%.
+        var request = new QuoteRequest("Cliente", "Pieza", 1, 23m + 20m / 60m, 1, 0m, 1.5m, "",
+            [new ConsumableUsageRequest(1, 900m)], []);
+        var settings = new BusinessSettingsDto("SANJ", "Bolivianos", "Bs", 1.10m, 0m, 1.3m, 0m, 0m, 2);
+
+        var result = QuoteCalculator.Calculate(request, Printer(400m),
+            [new QuoteCalculator.ConsumableLine(Consumable("Filamento", 155m, 1.24m), 900m)], [], settings);
+
+        Assert.Equal(139.50m, result.MaterialCost);
+        Assert.Equal(10.27m, result.ElectricityCost);
+        Assert.Equal(149.77m, result.Subtotal);
+        Assert.Equal(74.88m, result.ProfitAmount);
+        Assert.Equal(224.65m, result.RecommendedPrice);
+    }
+
+    [Fact]
     public void Rejects_quote_without_positive_consumable_weight()
     {
         var request = new QuoteRequest("Cliente", "Proyecto", 1, 1m, 1, 0m, 1.3m, "", [], []);

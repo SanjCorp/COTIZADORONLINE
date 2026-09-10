@@ -8,7 +8,10 @@ namespace SanjCorp3D.Api.Services;
 
 public sealed class BusinessSettingsService(AppDbContext db)
 {
-    public static BusinessSettingsDto Defaults => new("SANJ CORP 3D", "Bolivianos", "Bs", 1.10m, 2m, 1.30m, 0m, .10m, 2);
+    // Keep the spreadsheet's neutral defaults. Maintenance and rounding are
+    // optional inputs, so they must not change a quote unless the user sets
+    // them explicitly in Configuración.
+    public static BusinessSettingsDto Defaults => new("SANJ CORP 3D", "Bolivianos", "Bs", 1.10m, 0m, 1.30m, 0m, 0m, 2);
 
     public async Task<BusinessSettingsDto> GetAsync(CancellationToken cancellationToken = default)
     {

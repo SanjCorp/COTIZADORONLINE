@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using SanjCorp3D.Api.Services;
 
 namespace SanjCorp3D.Api.Data;
 
@@ -9,6 +10,6 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
     {
         var connection = Environment.GetEnvironmentVariable("SANJCORP_POSTGRES")
             ?? "Host=localhost;Port=5432;Database=sanjcorp3d;Username=sanjcorp3d;Password=design-time-only";
-        return new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connection).Options);
+        return new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connection).Options, new TenantContext());
     }
 }

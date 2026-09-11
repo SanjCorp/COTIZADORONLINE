@@ -42,7 +42,8 @@ public sealed class BusinessSettingsService(AppDbContext db)
         };
         foreach (var item in values)
         {
-            var current = await db.BusinessSettings.FindAsync([item.Key], cancellationToken);
+            var tenantId = db.CurrentTenantId ?? throw new InvalidOperationException("No se seleccionó un espacio de trabajo.");
+            var current = await db.BusinessSettings.FindAsync([tenantId, item.Key], cancellationToken);
             if (current is null) db.BusinessSettings.Add(new BusinessSetting { Key = item.Key, Value = item.Value });
             else current.Value = item.Value;
         }

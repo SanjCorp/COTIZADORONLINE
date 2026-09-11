@@ -22,6 +22,8 @@ var dataProtection = builder.Services.AddDataProtection()
 if (OperatingSystem.IsWindows()) dataProtection.ProtectKeysWithDpapi();
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString, npgsql => npgsql.EnableRetryOnFailure()));
+builder.Services.AddScoped<TenantContext>();
+builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>, ApplicationUserClaimsPrincipalFactory>();
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
         options.User.RequireUniqueEmail = true;
@@ -77,6 +79,17 @@ app.UseRateLimiter();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    var tenantContext = context.RequestServices.GetRequiredService<TenantContext>();
+    if (!tenantContext.Initialize(context.User, context.Request.Headers[TenantContext.HeaderName].FirstOrDefault()))
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await context.Response.WriteAsJsonAsync(new { message = "No tienes acceso a este espacio de trabajo." });
+        return;
+    }
+    await next();
+});
 app.UseAuthorization();
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();

@@ -8,9 +8,10 @@ export type { Dashboard, Profile } from './types'
 type ApiError = Error & { status: number; requiresTwoFactor?: boolean }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const tenant = sessionStorage.getItem('sanjcorp.tenant')
   const response = await fetch(path, {
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...(tenant ? { 'X-Tenant-Id': tenant } : {}), ...options?.headers },
     ...options,
   })
   if (!response.ok) {
@@ -33,7 +34,8 @@ function query(values: Record<string, string | number | boolean | undefined>) {
 }
 
 async function download(path: string, fallbackName: string) {
-  const response = await fetch(path, { credentials: 'include' })
+  const tenant = sessionStorage.getItem('sanjcorp.tenant')
+  const response = await fetch(path, { credentials: 'include', headers: tenant ? { 'X-Tenant-Id': tenant } : {} })
   if (!response.ok) throw new Error('No se pudo descargar el archivo.')
   const disposition = response.headers.get('content-disposition') ?? ''
   const fileName = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1] ?? fallbackName
@@ -47,7 +49,7 @@ async function download(path: string, fallbackName: string) {
 
 export const api = {
   me: () => request<Profile>('/api/auth/me'),
-  login: (username: string, password: string, twoFactorCode?: string) => request<Profile>('/api/auth/login', { method: 'POST', body: JSON.stringify({ username, password, twoFactorCode }) }),
+  login: (username: string, password: string, twoFactorCode?: string, workspace = 'technology') => request<Profile>('/api/auth/login', { method: 'POST', body: JSON.stringify({ username, password, twoFactorCode, workspace }) }),
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
   setupTwoFactor: () => request<TwoFactorSetup>('/api/auth/2fa/setup', { method: 'POST' }),
   enableTwoFactor: (code: string) => request<{ enabled: boolean; recoveryCodes: string[] }>('/api/auth/2fa/enable', { method: 'POST', body: JSON.stringify({ code }) }),
@@ -83,4 +85,5 @@ export const api = {
   resetPassword: (id: string, password: string) => request<void>(`/api/users/${id}/password`, { method: 'POST', body: JSON.stringify({ password }) }),
   exportBackup: () => download('/api/backup', 'sanjcorp3d-backup.json'),
   restoreBackup: (backup: unknown, confirmation: string) => request<{ message: string; quotes: number }>('/api/backup/restore', { method: 'POST', body: JSON.stringify({ backup, confirmation }) }),
+  tenants: () => request<Profile['workspaces']>('/api/tenants'),
 }

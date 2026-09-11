@@ -5,18 +5,20 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SanjCorp3D.Api.Contracts;
 using SanjCorp3D.Api.Identity;
+using SanjCorp3D.Api.Services;
 
 namespace SanjCorp3D.Api.Controllers;
 
-[ApiController, Authorize(Roles = AppRoles.Administrator), Route("api/users")]
-public sealed class UsersController(UserManager<ApplicationUser> users) : ControllerBase
+[ApiController, Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.SuperAdmin}"), Route("api/users")]
+public sealed class UsersController(UserManager<ApplicationUser> users, TenantContext tenantContext) : ControllerBase
 {
     public sealed record ResetPasswordRequest(string Password);
 
     [HttpGet]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
     {
-        var items = await users.Users.AsNoTracking().OrderBy(x => x.UserName).ToListAsync(cancellationToken);
+        var tenantId = tenantContext.CurrentTenantId ?? throw new InvalidOperationException("No se seleccionó un espacio de trabajo.");
+        var items = await users.Users.AsNoTracking().Where(x => x.TenantId == tenantId).OrderBy(x => x.UserName).ToListAsync(cancellationToken);
         var result = new List<object>(items.Count);
         foreach (var item in items)
         {
@@ -26,18 +28,19 @@ public sealed class UsersController(UserManager<ApplicationUser> users) : Contro
     }
 
     [HttpGet("roles")]
-    public IActionResult Roles() => Ok(AppRoles.All);
+    public IActionResult Roles() => Ok(new[] { AppRoles.Administrator, AppRoles.Sales, AppRoles.Production, AppRoles.Viewer });
 
     [HttpPost]
     public async Task<IActionResult> Create(CreateUserRequest request)
     {
         Validate(request.Username, request.DisplayName, request.Role);
+        if (tenantContext.CurrentTenantId is null) throw new InvalidOperationException("No se seleccionó un espacio de trabajo.");
         var user = new ApplicationUser
         {
             UserName = request.Username.Trim(),
             DisplayName = request.DisplayName.Trim(),
             Email = NullIfWhiteSpace(request.Email),
-            EmailConfirmed = !string.IsNullOrWhiteSpace(request.Email),
+            EmailConfirmed = !string.IsNullOrWhiteSpace(request.Email), TenantId = tenantContext.CurrentTenantId,
             Active = true
         };
         var created = await users.CreateAsync(user, request.Password);
@@ -55,7 +58,8 @@ public sealed class UsersController(UserManager<ApplicationUser> users) : Contro
     public async Task<IActionResult> Update(Guid id, UpdateUserRequest request)
     {
         Validate("existing", request.DisplayName, request.Role);
-        var user = await users.FindByIdAsync(id.ToString());
+        var tenantId = tenantContext.CurrentTenantId ?? throw new InvalidOperationException("No se seleccionó un espacio de trabajo.");
+        var user = await users.Users.FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId);
         if (user is null) return NotFound();
         bool isSelf = User.FindFirstValue(ClaimTypes.NameIdentifier) == user.Id.ToString();
         var currentRoles = await users.GetRolesAsync(user);
@@ -83,7 +87,8 @@ public sealed class UsersController(UserManager<ApplicationUser> users) : Contro
     [HttpPost("{id:guid}/password")]
     public async Task<IActionResult> ResetPassword(Guid id, ResetPasswordRequest request)
     {
-        var user = await users.FindByIdAsync(id.ToString());
+        var tenantId = tenantContext.CurrentTenantId ?? throw new InvalidOperationException("No se seleccionó un espacio de trabajo.");
+        var user = await users.Users.FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId);
         if (user is null) return NotFound();
         var token = await users.GeneratePasswordResetTokenAsync(user);
         var result = await users.ResetPasswordAsync(user, token, request.Password);
@@ -92,13 +97,14 @@ public sealed class UsersController(UserManager<ApplicationUser> users) : Contro
 
     private async Task<bool> IsLastActiveAdministrator(ApplicationUser target)
     {
+        var tenantId = tenantContext.CurrentTenantId;
         var admins = await users.GetUsersInRoleAsync(AppRoles.Administrator);
-        return admins.Count(x => x.Active && x.Id != target.Id) == 0;
+        return admins.Count(x => x.Active && x.Id != target.Id && x.TenantId == tenantId) == 0;
     }
 
     private static object ToDto(ApplicationUser user, IEnumerable<string> roles) => new
     {
-        user.Id, user.UserName, user.DisplayName, user.Email, user.Active, user.CreatedAtUtc,
+        user.Id, user.UserName, user.DisplayName, user.Email, user.TenantId, user.Active, user.CreatedAtUtc,
         user.LastLoginAtUtc, user.TwoFactorEnabled, Role = roles.FirstOrDefault() ?? AppRoles.Viewer
     };
 

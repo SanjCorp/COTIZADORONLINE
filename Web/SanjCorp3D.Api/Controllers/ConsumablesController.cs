@@ -24,7 +24,7 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
             .ToListAsync(ct));
     }
 
-    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production}"), HttpPost]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpPost]
     public async Task<IActionResult> Create(Consumable input, CancellationToken ct)
     {
         input.Id = 0;
@@ -36,7 +36,7 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
         return await Save(input, ct);
     }
 
-    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production}"), HttpPut("{id:long}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpPut("{id:long}")]
     public async Task<IActionResult> Update(long id, Consumable input, CancellationToken ct)
     {
         var item = await db.Consumables.FindAsync([id], ct);
@@ -58,7 +58,7 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
         return await Save(item, ct);
     }
 
-    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production}"), HttpPatch("{id:long}/stock")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpPatch("{id:long}/stock")]
     public async Task<IActionResult> Stock(long id, [FromBody] StockRequest request, CancellationToken ct)
     {
         var item = await db.Consumables.FindAsync([id], ct);
@@ -77,7 +77,7 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
         return Ok(item);
     }
 
-    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production}"), HttpPost("{id:long}/stock/add")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpPost("{id:long}/stock/add")]
     public async Task<IActionResult> AddStock(long id, [FromBody] StockAdditionRequest request, CancellationToken ct)
     {
         if (request.Kilograms < 0 || request.Grams < 0)
@@ -91,7 +91,7 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
         return Ok(item);
     }
 
-    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production}"), HttpDelete("{id:long}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpDelete("{id:long}")]
     public async Task<IActionResult> Archive(long id, CancellationToken ct)
     {
         var item = await db.Consumables.FindAsync([id], ct);

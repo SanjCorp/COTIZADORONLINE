@@ -18,7 +18,7 @@ public sealed class PrintersController(AppDbContext db) : ControllerBase
         return Ok(await query.OrderByDescending(x => x.IsDefault).ThenBy(x => x.Name).ToListAsync(ct));
     }
 
-    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production}"), HttpPost]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpPost]
     public async Task<IActionResult> Create(Printer input, CancellationToken ct)
     {
         input.Id = 0; input.Active = true; Validate(input);
@@ -26,7 +26,7 @@ public sealed class PrintersController(AppDbContext db) : ControllerBase
         return await Save(input, ct);
     }
 
-    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production}"), HttpPut("{id:long}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpPut("{id:long}")]
     public async Task<IActionResult> Update(long id, Printer input, CancellationToken ct)
     {
         var item = await db.Printers.FindAsync([id], ct); if (item is null) return NotFound();
@@ -36,7 +36,7 @@ public sealed class PrintersController(AppDbContext db) : ControllerBase
         return await Save(item, ct);
     }
 
-    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production}"), HttpDelete("{id:long}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpDelete("{id:long}")]
     public async Task<IActionResult> Archive(long id, CancellationToken ct) { var item=await db.Printers.FindAsync([id],ct); if(item is null)return NotFound(); item.Active=false; item.IsDefault=false; await db.SaveChangesAsync(ct); return NoContent(); }
 
     private async Task ClearDefault(Printer input, CancellationToken ct) { if(input.IsDefault) await db.Printers.Where(x=>x.IsDefault).ExecuteUpdateAsync(x=>x.SetProperty(p=>p.IsDefault,false),ct); }

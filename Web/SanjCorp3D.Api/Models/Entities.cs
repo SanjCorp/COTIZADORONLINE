@@ -1,10 +1,23 @@
 namespace SanjCorp3D.Api.Models;
 
 public interface IActiveEntity { bool Active { get; set; } }
+public interface ITenantEntity { Guid TenantId { get; set; } }
 
-public sealed class Printer : IActiveEntity
+public sealed class Tenant
+{
+    public Guid Id { get; set; }
+    public required string Name { get; set; }
+    public required string Slug { get; set; }
+    public required string Kind { get; set; }
+    public string? LogoUrl { get; set; }
+    public bool Active { get; set; } = true;
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class Printer : IActiveEntity, ITenantEntity
 {
     public long Id { get; set; }
+    public Guid TenantId { get; set; }
     public required string Name { get; set; }
     public decimal BuildX { get; set; }
     public decimal BuildY { get; set; }
@@ -17,9 +30,10 @@ public sealed class Printer : IActiveEntity
     public bool Active { get; set; } = true;
 }
 
-public sealed class Consumable : IActiveEntity
+public sealed class Consumable : IActiveEntity, ITenantEntity
 {
     public long Id { get; set; }
+    public Guid TenantId { get; set; }
     public required string Name { get; set; }
     public required string Category { get; set; }
     public required string Material { get; set; }
@@ -34,9 +48,10 @@ public sealed class Consumable : IActiveEntity
     public decimal LowStockGrams { get; set; } = 1000m;
 }
 
-public sealed class ExtraMaterial : IActiveEntity
+public sealed class ExtraMaterial : IActiveEntity, ITenantEntity
 {
     public long Id { get; set; }
+    public Guid TenantId { get; set; }
     public required string Name { get; set; }
     public required string Category { get; set; }
     public required string Unit { get; set; }
@@ -44,9 +59,10 @@ public sealed class ExtraMaterial : IActiveEntity
     public bool Active { get; set; } = true;
 }
 
-public sealed class Quote
+public sealed class Quote : ITenantEntity
 {
     public long Id { get; set; }
+    public Guid TenantId { get; set; }
     public required string OrderCode { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public required string Customer { get; set; }
@@ -74,9 +90,10 @@ public sealed class Quote
     public Sale? Sale { get; set; }
 }
 
-public sealed class QuoteConsumable
+public sealed class QuoteConsumable : ITenantEntity
 {
     public long Id { get; set; }
+    public Guid TenantId { get; set; }
     public long QuoteId { get; set; }
     public Quote Quote { get; set; } = null!;
     public long LegacyConsumableId { get; set; }
@@ -90,9 +107,10 @@ public sealed class QuoteConsumable
     public decimal LineCost { get; set; }
 }
 
-public sealed class QuoteMaterial
+public sealed class QuoteMaterial : ITenantEntity
 {
     public long Id { get; set; }
+    public Guid TenantId { get; set; }
     public long QuoteId { get; set; }
     public Quote Quote { get; set; } = null!;
     public long LegacyMaterialId { get; set; }
@@ -102,9 +120,10 @@ public sealed class QuoteMaterial
     public decimal LineCost { get; set; }
 }
 
-public sealed class Sale
+public sealed class Sale : ITenantEntity
 {
     public long Id { get; set; }
+    public Guid TenantId { get; set; }
     public long QuoteId { get; set; }
     public Quote Quote { get; set; } = null!;
     public DateTime SoldAtUtc { get; set; }
@@ -112,9 +131,10 @@ public sealed class Sale
     public List<SaleConsumable> Consumables { get; set; } = [];
 }
 
-public sealed class SaleConsumable
+public sealed class SaleConsumable : ITenantEntity
 {
     public long Id { get; set; }
+    public Guid TenantId { get; set; }
     public long SaleId { get; set; }
     public Sale Sale { get; set; } = null!;
     public long ConsumableId { get; set; }
@@ -122,8 +142,9 @@ public sealed class SaleConsumable
     public decimal Grams { get; set; }
 }
 
-public sealed class BusinessSetting
+public sealed class BusinessSetting : ITenantEntity
 {
+    public Guid TenantId { get; set; }
     public required string Key { get; set; }
     public required string Value { get; set; }
 }

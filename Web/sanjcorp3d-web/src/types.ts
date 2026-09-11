@@ -5,6 +5,12 @@ export type Profile = {
   displayName: string
   twoFactorEnabled: boolean
   roles: string[]
+  tenantId?: string
+  tenantName?: string
+  tenantKind?: string
+  logoUrl?: string
+  isSuperAdmin?: boolean
+  workspaces?: Array<{ id: string; name: string; slug: string; kind: string; logoUrl?: string; active: boolean }>
 }
 
 export type Dashboard = { quotes: number; salesThisMonth: number; revenueThisMonth: number; lowStock: number }

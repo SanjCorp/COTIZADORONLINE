@@ -10,5 +10,5 @@ namespace SanjCorp3D.Api.Controllers;
 public sealed class SettingsController(BusinessSettingsService settings):ControllerBase
 {
     [HttpGet]public async Task<IActionResult>Get(CancellationToken ct)=>Ok(await settings.GetAsync(ct));
-    [Authorize(Roles=AppRoles.Administrator),HttpPut]public async Task<IActionResult>Update(BusinessSettingsDto input,CancellationToken ct){await settings.SaveAsync(input,ct);return Ok(await settings.GetAsync(ct));}
+    [Authorize(Roles=$"{AppRoles.Administrator},{AppRoles.Maker},{AppRoles.SuperAdmin}"),HttpPut]public async Task<IActionResult>Update(BusinessSettingsDto input,CancellationToken ct){await settings.SaveAsync(input,ct);return Ok(await settings.GetAsync(ct));}
 }

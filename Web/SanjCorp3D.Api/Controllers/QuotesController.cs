@@ -42,13 +42,13 @@ public sealed class QuotesController(AppDbContext db,BusinessSettingsService set
         return q is null?NotFound():Ok(q);
     }
 
-    [Authorize(Roles=$"{AppRoles.Administrator},{AppRoles.Sales}"),HttpPost("calculate")]
+    [Authorize(Roles=$"{AppRoles.Administrator},{AppRoles.Sales},{AppRoles.Maker},{AppRoles.SuperAdmin}"),HttpPost("calculate")]
     public async Task<IActionResult>Calculate(QuoteRequest request,CancellationToken ct)
     {
         var resolved=await Resolve(request,ct);return Ok(QuoteCalculator.Calculate(request,resolved.Printer,resolved.Consumables,resolved.Materials,await settings.GetAsync(ct)));
     }
 
-    [Authorize(Roles=$"{AppRoles.Administrator},{AppRoles.Sales}"),HttpPost]
+    [Authorize(Roles=$"{AppRoles.Administrator},{AppRoles.Sales},{AppRoles.Maker},{AppRoles.SuperAdmin}"),HttpPost]
     public async Task<IActionResult>Create(QuoteRequest request,CancellationToken ct)
     {
         var resolved=await Resolve(request,ct);var calculation=QuoteCalculator.Calculate(request,resolved.Printer,resolved.Consumables,resolved.Materials,await settings.GetAsync(ct));
@@ -66,7 +66,7 @@ public sealed class QuotesController(AppDbContext db,BusinessSettingsService set
         });
     }
 
-    [Authorize(Roles=$"{AppRoles.Administrator},{AppRoles.Sales}"),HttpPost("{id:long}/sale")]
+    [Authorize(Roles=$"{AppRoles.Administrator},{AppRoles.Sales},{AppRoles.Maker},{AppRoles.SuperAdmin}"),HttpPost("{id:long}/sale")]
     public async Task<IActionResult>ConfirmSale(long id,CancellationToken ct)
     {
         var strategy=db.Database.CreateExecutionStrategy();
@@ -129,7 +129,7 @@ public sealed class QuotesController(AppDbContext db,BusinessSettingsService set
         });
     }
 
-    [Authorize(Roles=AppRoles.Administrator),HttpDelete("{id:long}")]
+    [Authorize(Roles=$"{AppRoles.Administrator},{AppRoles.Maker},{AppRoles.SuperAdmin}"),HttpDelete("{id:long}")]
     public async Task<IActionResult>Delete(long id,CancellationToken ct)
     {
         var strategy=db.Database.CreateExecutionStrategy();

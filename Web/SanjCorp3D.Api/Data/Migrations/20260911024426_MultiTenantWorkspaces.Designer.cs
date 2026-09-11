@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SanjCorp3D.Api.Data;
@@ -11,9 +12,11 @@ using SanjCorp3D.Api.Data;
 namespace SanjCorp3D.Api.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260911024426_MultiTenantWorkspaces")]
+    partial class MultiTenantWorkspaces
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -568,12 +571,9 @@ namespace SanjCorp3D.Api.Data.Migrations
                     b.Property<long>("QuoteId")
                         .HasColumnType("bigint");
 
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "QuoteId");
+                    b.HasIndex("QuoteId");
 
                     b.ToTable("QuoteConsumables", "sanjcorp");
                 });
@@ -604,16 +604,13 @@ namespace SanjCorp3D.Api.Data.Migrations
                     b.Property<long>("QuoteId")
                         .HasColumnType("bigint");
 
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
                     b.Property<decimal>("UnitPrice")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "QuoteId");
+                    b.HasIndex("QuoteId");
 
                     b.ToTable("QuoteMaterials", "sanjcorp");
                 });
@@ -668,18 +665,11 @@ namespace SanjCorp3D.Api.Data.Migrations
                     b.Property<long>("SaleId")
                         .HasColumnType("bigint");
 
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
                     b.HasKey("Id");
 
                     b.HasIndex("ConsumableId");
 
                     b.HasIndex("SaleId");
-
-                    b.HasIndex("TenantId", "ConsumableId");
-
-                    b.HasIndex("TenantId", "SaleId");
 
                     b.ToTable("SaleConsumables", "sanjcorp");
                 });
@@ -819,8 +809,7 @@ namespace SanjCorp3D.Api.Data.Migrations
                 {
                     b.HasOne("SanjCorp3D.Api.Models.Quote", "Quote")
                         .WithMany("Consumables")
-                        .HasForeignKey("TenantId", "QuoteId")
-                        .HasPrincipalKey("TenantId", "Id")
+                        .HasForeignKey("QuoteId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -831,8 +820,7 @@ namespace SanjCorp3D.Api.Data.Migrations
                 {
                     b.HasOne("SanjCorp3D.Api.Models.Quote", "Quote")
                         .WithMany("Materials")
-                        .HasForeignKey("TenantId", "QuoteId")
-                        .HasPrincipalKey("TenantId", "Id")
+                        .HasForeignKey("QuoteId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -860,15 +848,13 @@ namespace SanjCorp3D.Api.Data.Migrations
                 {
                     b.HasOne("SanjCorp3D.Api.Models.Consumable", "Consumable")
                         .WithMany()
-                        .HasForeignKey("TenantId", "ConsumableId")
-                        .HasPrincipalKey("TenantId", "Id")
+                        .HasForeignKey("ConsumableId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("SanjCorp3D.Api.Models.Sale", "Sale")
                         .WithMany("Consumables")
-                        .HasForeignKey("TenantId", "SaleId")
-                        .HasPrincipalKey("TenantId", "Id")
+                        .HasForeignKey("SaleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 

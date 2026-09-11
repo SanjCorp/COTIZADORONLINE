@@ -10,7 +10,7 @@ using SanjCorp3D.Api.Services;
 
 namespace SanjCorp3D.Api.Controllers;
 
-[ApiController, Authorize(Roles = AppRoles.Administrator), Route("api/backup")]
+[ApiController, Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Maker},{AppRoles.SuperAdmin}"), Route("api/backup")]
 public sealed class BackupController(AppDbContext db) : ControllerBase
 {
     [HttpGet]

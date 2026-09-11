@@ -3,14 +3,17 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using SanjCorp3D.Api.Data;
 using SanjCorp3D.Api.Identity;
+using SanjCorp3D.Api.Services;
 
 namespace SanjCorp3D.Api.Controllers;
 
 [ApiController, Route("api/auth")]
-public sealed class AuthController(UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn) : ControllerBase
+public sealed class AuthController(UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn, AppDbContext db) : ControllerBase
 {
-    public sealed record LoginRequest(string Username, string Password, string? TwoFactorCode, bool RememberMe = false);
+    public sealed record LoginRequest(string Username, string Password, string? TwoFactorCode, bool RememberMe = false, string Workspace = "technology");
     public sealed record TwoFactorRequest(string Code);
 
     [AllowAnonymous, HttpPost("login"), EnableRateLimiting("login")]
@@ -20,6 +23,16 @@ public sealed class AuthController(UserManager<ApplicationUser> users, SignInMan
         var user = await users.FindByNameAsync(identifier);
         if (user is null && identifier.Contains('@')) user = await users.FindByEmailAsync(identifier);
         if (user is null || !user.Active) return Unauthorized(new { message = "Credenciales incorrectas." });
+        var roles = await users.GetRolesAsync(user);
+        var isSuperAdmin = user.IsSupremeAdmin || roles.Contains(AppRoles.SuperAdmin);
+        var tenant = user.TenantId.HasValue
+            ? await db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == user.TenantId.Value)
+            : await db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == TenantContext.TechnologyTenantId);
+        if (tenant is null || !tenant.Active) return Unauthorized(new { message = "La cuenta pertenece a un espacio inactivo." });
+        var workspace = request.Workspace.Trim().ToLowerInvariant();
+        if (workspace is not ("technology" or "makers")) return BadRequest(new { message = "El espacio seleccionado no es válido." });
+        if (!isSuperAdmin && workspace == "makers" && !roles.Contains(AppRoles.Maker)) return Unauthorized(new { message = "Esta cuenta no pertenece a Makers." });
+        if (!isSuperAdmin && workspace == "technology" && roles.Contains(AppRoles.Maker)) return Unauthorized(new { message = "Esta cuenta pertenece a Makers." });
         var result = await signIn.PasswordSignInAsync(user, request.Password, request.RememberMe, lockoutOnFailure: true);
         if (result.RequiresTwoFactor)
         {
@@ -87,9 +100,22 @@ public sealed class AuthController(UserManager<ApplicationUser> users, SignInMan
         return NoContent();
     }
 
-    private async Task<object> Profile(ApplicationUser user) => new
+    private async Task<object> Profile(ApplicationUser user)
     {
-        user.Id, user.UserName, user.Email, user.DisplayName, TwoFactorEnabled = await users.GetTwoFactorEnabledAsync(user),
-        Roles = await users.GetRolesAsync(user)
-    };
+        var roles = await users.GetRolesAsync(user);
+        var isSuperAdmin = user.IsSupremeAdmin || roles.Contains(AppRoles.SuperAdmin);
+        var tenant = user.TenantId.HasValue
+            ? await db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == user.TenantId.Value)
+            : await db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == Services.TenantContext.TechnologyTenantId);
+        var workspaces = isSuperAdmin
+            ? new object[] { new { id = TenantContext.TechnologyTenantId, name = "SanjCorp Technology", kind = "technology" }, new { id = (Guid?)null, name = "Makers", kind = "makers" } }
+            : new object[] { new { id = tenant?.Id, name = tenant?.Name ?? "", kind = tenant?.Kind ?? "technology" } };
+        return new
+        {
+            user.Id, user.UserName, user.Email, user.DisplayName, user.TenantId,
+            TenantName = tenant?.Name, TenantKind = tenant?.Kind, LogoUrl = tenant?.LogoUrl,
+            IsSuperAdmin = isSuperAdmin, TwoFactorEnabled = await users.GetTwoFactorEnabledAsync(user), Roles = roles,
+            Workspaces = workspaces
+        };
+    }
 }

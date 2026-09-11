@@ -34,7 +34,7 @@ export function weight(value: number) {
 }
 
 export function roleLabel(role: string) {
-  return ({ Administrator: 'Administrador', Sales: 'Ventas', Production: 'Producción', Viewer: 'Consulta' } as Record<string, string>)[role] ?? role
+  return ({ Administrator: 'Administrador', SuperAdmin: 'Administrador supremo', Maker: 'Maker', Sales: 'Ventas', Production: 'Producción', Viewer: 'Consulta' } as Record<string, string>)[role] ?? role
 }
 
 export function hasAnyRole(roles: string[], allowed: string[]) {

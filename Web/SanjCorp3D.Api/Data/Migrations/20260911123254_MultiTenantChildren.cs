@@ -49,7 +49,6 @@ namespace SanjCorp3D.Api.Data.Migrations
                 nullable: false,
                 defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
 
-            migrationBuilder.Sql("UPDATE \"sanjcorp\".\"QuoteConsumables\" c SET \"TenantId\" = q.\"TenantId\" FROM \"sanjcorp\".\"Quotes\" q WHERE q.\"Id\" = c.\"QuoteId\"; UPDATE \"sanjcorp\".\"QuoteMaterials\" c SET \"TenantId\" = q.\"TenantId\" FROM \"sanjcorp\".\"Quotes\" q WHERE q.\"Id\" = c.\"QuoteId\"; UPDATE \"sanjcorp\".\"SaleConsumables\" c SET \"TenantId\" = s.\"TenantId\" FROM \"sanjcorp\".\"Sales\" s WHERE s.\"Id\" = c.\"SaleId\";");
 
             migrationBuilder.AddColumn<Guid>(
                 name: "TenantId",
@@ -66,6 +65,8 @@ namespace SanjCorp3D.Api.Data.Migrations
                 type: "uuid",
                 nullable: false,
                 defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
+
+            migrationBuilder.Sql("UPDATE \"sanjcorp\".\"QuoteConsumables\" c SET \"TenantId\" = q.\"TenantId\" FROM \"sanjcorp\".\"Quotes\" q WHERE q.\"Id\" = c.\"QuoteId\"; UPDATE \"sanjcorp\".\"QuoteMaterials\" c SET \"TenantId\" = q.\"TenantId\" FROM \"sanjcorp\".\"Quotes\" q WHERE q.\"Id\" = c.\"QuoteId\"; UPDATE \"sanjcorp\".\"SaleConsumables\" c SET \"TenantId\" = s.\"TenantId\" FROM \"sanjcorp\".\"Sales\" s WHERE s.\"Id\" = c.\"SaleId\";");
 
             migrationBuilder.AddUniqueConstraint(
                 name: "AK_Sales_TenantId_Id",

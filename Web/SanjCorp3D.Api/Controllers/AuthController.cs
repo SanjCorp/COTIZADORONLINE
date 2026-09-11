@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using SanjCorp3D.Api.Data;
 using SanjCorp3D.Api.Identity;
+using SanjCorp3D.Api.Models;
 using SanjCorp3D.Api.Services;
 
 namespace SanjCorp3D.Api.Controllers;

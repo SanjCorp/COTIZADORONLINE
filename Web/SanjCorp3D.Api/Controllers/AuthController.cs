@@ -11,7 +11,7 @@ using SanjCorp3D.Api.Services;
 namespace SanjCorp3D.Api.Controllers;
 
 [ApiController, Route("api/auth")]
-public sealed class AuthController(UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn, AppDbContext db) : ControllerBase
+public sealed class AuthController(UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn, AppDbContext db, TenantContext tenantContext) : ControllerBase
 {
     public sealed record LoginRequest(string Username, string Password, string? TwoFactorCode, bool RememberMe = false, string Workspace = "technology");
     public sealed record TwoFactorRequest(string Code);
@@ -25,9 +25,7 @@ public sealed class AuthController(UserManager<ApplicationUser> users, SignInMan
         if (user is null || !user.Active) return Unauthorized(new { message = "Credenciales incorrectas." });
         var roles = await users.GetRolesAsync(user);
         var isSuperAdmin = user.IsSupremeAdmin || roles.Contains(AppRoles.SuperAdmin);
-        var tenant = user.TenantId.HasValue
-            ? await db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == user.TenantId.Value)
-            : await db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == TenantContext.TechnologyTenantId);
+        var tenant = await ResolveTenant(user, isSuperAdmin);
         if (tenant is null || !tenant.Active) return Unauthorized(new { message = "La cuenta pertenece a un espacio inactivo." });
         var workspace = request.Workspace.Trim().ToLowerInvariant();
         if (workspace is not ("technology" or "makers")) return BadRequest(new { message = "El espacio seleccionado no es válido." });
@@ -104,12 +102,11 @@ public sealed class AuthController(UserManager<ApplicationUser> users, SignInMan
     {
         var roles = await users.GetRolesAsync(user);
         var isSuperAdmin = user.IsSupremeAdmin || roles.Contains(AppRoles.SuperAdmin);
-        var tenant = user.TenantId.HasValue
-            ? await db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == user.TenantId.Value)
-            : await db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == Services.TenantContext.TechnologyTenantId);
+        var tenant = await ResolveTenant(user, isSuperAdmin);
         var workspaces = isSuperAdmin
-            ? new object[] { new { id = TenantContext.TechnologyTenantId, name = "SanjCorp Technology", kind = "technology" }, new { id = (Guid?)null, name = "Makers", kind = "makers" } }
-            : new object[] { new { id = tenant?.Id, name = tenant?.Name ?? "", kind = tenant?.Kind ?? "technology" } };
+            ? await db.Tenants.IgnoreQueryFilters().Where(x => x.Active).OrderBy(x => x.Kind).ThenBy(x => x.Name)
+                .Select(x => new { id = (Guid?)x.Id, name = x.Name, slug = x.Slug, kind = x.Kind, logoUrl = x.LogoUrl, active = x.Active }).ToListAsync()
+            : new[] { new { id = tenant?.Id, name = tenant?.Name ?? "", slug = tenant?.Slug ?? "", kind = tenant?.Kind ?? "technology", logoUrl = tenant?.LogoUrl, active = tenant?.Active ?? false } }.ToList();
         return new
         {
             user.Id, user.UserName, user.Email, user.DisplayName, user.TenantId,
@@ -117,5 +114,13 @@ public sealed class AuthController(UserManager<ApplicationUser> users, SignInMan
             IsSuperAdmin = isSuperAdmin, TwoFactorEnabled = await users.GetTwoFactorEnabledAsync(user), Roles = roles,
             Workspaces = workspaces
         };
+    }
+
+    private async Task<Tenant?> ResolveTenant(ApplicationUser user, bool isSuperAdmin)
+    {
+        var selected = tenantContext.CurrentTenantId;
+        if (isSuperAdmin && selected.HasValue)
+            return await db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == selected.Value);
+        return await db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == (user.TenantId ?? TenantContext.TechnologyTenantId));
     }
 }

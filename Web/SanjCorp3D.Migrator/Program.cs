@@ -28,7 +28,9 @@ if (!apply) { Console.WriteLine("\nValidación terminada. Usa --apply y SANJCORP
 if (string.IsNullOrWhiteSpace(destination)) return Fail("Falta SANJCORP_POSTGRES o --connection.");
 
 var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(destination).Options;
-await using var db = new AppDbContext(options);
+var tenantContext = new TenantContext();
+tenantContext.Use(TenantContext.TechnologyTenantId);
+await using var db = new AppDbContext(options, tenantContext);
 await db.Database.MigrateAsync();
 if (await db.Printers.AnyAsync() || await db.Consumables.AnyAsync() || await db.Materials.AnyAsync() || await db.Quotes.AnyAsync()) return Fail("El destino ya contiene datos de negocio. Se canceló para evitar duplicados.");
 

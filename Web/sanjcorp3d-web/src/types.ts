@@ -82,5 +82,6 @@ export type UserAccount = {
   id: string; userName: string; displayName: string; email?: string; active: boolean; createdAtUtc: string
   lastLoginAtUtc?: string; twoFactorEnabled: boolean; role: string
 }
+export type Tenant = { id: string; name: string; slug: string; kind: string; logoUrl?: string; active: boolean; userCount: number }
 
 export type TwoFactorSetup = { sharedKey: string; authenticatorUri: string }

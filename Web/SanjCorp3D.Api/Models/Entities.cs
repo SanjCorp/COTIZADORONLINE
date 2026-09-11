@@ -128,6 +128,7 @@ public sealed class Sale : ITenantEntity
     public Quote Quote { get; set; } = null!;
     public DateTime SoldAtUtc { get; set; }
     public decimal SaleAmount { get; set; }
+    public Guid? CreatedByUserId { get; set; }
     public List<SaleConsumable> Consumables { get; set; } = [];
 }
 

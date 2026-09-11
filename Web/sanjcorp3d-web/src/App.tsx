@@ -13,9 +13,10 @@ import { QuotePage } from './pages/QuotePage'
 import { ReportsPage } from './pages/ReportsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { UsersPage } from './pages/UsersPage'
+import { SupremeAdminPage } from './pages/SupremeAdminPage'
 import { hasAnyRole, roleLabel } from './ui'
 
-type PageKey = 'dashboard' | 'quote' | 'printers' | 'consumables' | 'materials' | 'history' | 'reports' | 'users' | 'settings' | 'help'
+type PageKey = 'dashboard' | 'quote' | 'printers' | 'consumables' | 'materials' | 'history' | 'reports' | 'users' | 'settings' | 'help' | 'supreme'
 
 export function App() {
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -54,9 +55,11 @@ function Application({ profile, onProfileChange, onLogout }: { profile: Profile;
     { key: 'materials', label: 'Materiales', icon: Layers3 }, { key: 'history', label: 'Historial', icon: FileClock },
     { key: 'reports', label: 'Reportes y ventas', icon: BarChart3 }, { key: 'users', label: 'Usuarios', icon: Users, admin: true },
     { key: 'settings', label: 'Configuración', icon: Settings }, { key: 'help', label: 'Ayuda', icon: CircleHelp },
+    ...(isSuperAdmin ? [{ key: 'supreme' as PageKey, label: 'Administrar espacios', icon: ShieldCheck, admin: true }] : []),
   ]
   let content
   switch (page) {
+    case 'supreme': content = isSuperAdmin ? <SupremeAdminPage profile={profile} /> : <DashboardPage goTo={goTo} />; break
     case 'quote': content = <QuotePage canWrite={canSale} />; break
     case 'printers': content = <PrintersPage canEdit={canCatalog} />; break
     case 'consumables': content = <ConsumablesPage canEdit={canCatalog} />; break

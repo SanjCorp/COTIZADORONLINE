@@ -11,11 +11,11 @@ namespace SanjCorp3D.Api.Controllers;
 public sealed class ReportsController(AppDbContext db):ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult>Get([FromQuery]DateTime? from=null,[FromQuery]DateTime? to=null,CancellationToken ct=default)
+    public async Task<IActionResult>Get([FromQuery]DateTime? from=null,[FromQuery]DateTime? to=null,[FromQuery]Guid? userId=null,CancellationToken ct=default)
     {
         var start=DateTime.SpecifyKind((from??DateTime.UtcNow.AddMonths(-1)).Date,DateTimeKind.Utc);var end=DateTime.SpecifyKind((to??DateTime.UtcNow).Date.AddDays(1),DateTimeKind.Utc);
         var quotes=await db.Quotes.AsNoTracking().Where(x=>x.CreatedAtUtc>=start&&x.CreatedAtUtc<end).ToListAsync(ct);
-        var sales=await db.Sales.AsNoTracking().Where(x=>x.SoldAtUtc>=start&&x.SoldAtUtc<end).Include(x=>x.Quote).OrderByDescending(x=>x.SoldAtUtc).Select(x=>new{x.Id,x.QuoteId,x.Quote.OrderCode,x.SoldAtUtc,x.Quote.Customer,x.Quote.ProjectName,CostTotal=x.Quote.Subtotal,x.SaleAmount,Profit=x.SaleAmount-x.Quote.Subtotal}).ToListAsync(ct);
+        var sales=await db.Sales.AsNoTracking().Where(x=>x.SoldAtUtc>=start&&x.SoldAtUtc<end&&(!userId.HasValue||x.CreatedByUserId==userId)).Include(x=>x.Quote).OrderByDescending(x=>x.SoldAtUtc).Select(x=>new{x.Id,x.QuoteId,x.Quote.OrderCode,x.SoldAtUtc,x.Quote.Customer,x.Quote.ProjectName,CostTotal=x.Quote.Subtotal,x.SaleAmount,Profit=x.SaleAmount-x.Quote.Subtotal}).ToListAsync(ct);
         var distribution=await db.QuoteConsumables.AsNoTracking().Where(x=>x.Quote.CreatedAtUtc>=start&&x.Quote.CreatedAtUtc<end).GroupBy(x=>x.Name).Select(x=>new{Name=x.Key,Grams=x.Sum(v=>v.Grams*v.Quote.Quantity)}).OrderByDescending(x=>x.Grams).ToListAsync(ct);
         return Ok(new{QuoteCount=quotes.Count,TotalCost=quotes.Sum(x=>x.Subtotal),ProjectedRevenue=quotes.Sum(x=>x.RecommendedPrice),ProjectedProfit=quotes.Sum(x=>x.ProfitAmount),SaleCount=sales.Count,SalesRevenue=sales.Sum(x=>x.SaleAmount),SalesProfit=sales.Sum(x=>x.Profit),Sales=sales,ConsumableDistribution=distribution,CostDistribution=new[]{new{Name="Consumibles",Value=quotes.Sum(x=>x.MaterialCost)},new{Name="Electricidad",Value=quotes.Sum(x=>x.ElectricityCost)},new{Name="Mantenimiento",Value=quotes.Sum(x=>x.MaintenanceCost)},new{Name="Adicionales",Value=quotes.Sum(x=>x.AdditionalCost)}}});
     }

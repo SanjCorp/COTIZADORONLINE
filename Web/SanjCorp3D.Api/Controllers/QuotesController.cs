@@ -1,5 +1,6 @@
 using System.Data;
 using System.Globalization;
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -107,7 +108,7 @@ public sealed class QuotesController(AppDbContext db,BusinessSettingsService set
                     });
             }
 
-            var sale = new Sale { SoldAtUtc = DateTime.UtcNow, SaleAmount = quote.RecommendedPrice };
+            var sale = new Sale { SoldAtUtc = DateTime.UtcNow, SaleAmount = quote.RecommendedPrice, CreatedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) is string value && Guid.TryParse(value, out var userId) ? userId : null };
             foreach (var required in usage)
             {
                 var item = inventory[required.Id];

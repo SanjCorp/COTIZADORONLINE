@@ -1,6 +1,6 @@
 import type {
   BusinessSettings, Consumable, Dashboard, ExtraMaterial, Printer, Profile, QuoteCalculation,
-  QuoteDetail, QuoteRequest, QuoteSummary, Report, TwoFactorSetup, UserAccount, InventoryAlert,
+  QuoteDetail, QuoteRequest, QuoteSummary, Report, TwoFactorSetup, UserAccount, InventoryAlert, Tenant,
 } from './types'
 
 export type { Dashboard, Profile } from './types'
@@ -76,7 +76,7 @@ export const api = {
   confirmSale: (id: number) => request<{ id: number; quoteId: number; soldAtUtc: string; saleAmount: number }>(`/api/quotes/${id}/sale`, { method: 'POST' }),
   deleteQuote: (id: number) => request<void>(`/api/quotes/${id}`, { method: 'DELETE' }),
   exportQuotes: (filters: { search?: string; from?: string; to?: string }) => download(`/api/quotes/export${query(filters)}`, 'cotizaciones.csv'),
-  report: (from: string, to: string) => request<Report>(`/api/reports${query({ from, to })}`),
+  report: (from: string, to: string, userId?: string) => request<Report>(`/api/reports${query({ from, to, userId })}`),
   exportSales: (from: string, to: string) => download(`/api/reports/sales/export${query({ from, to })}`, 'ventas.csv'),
   users: () => request<UserAccount[]>('/api/users'),
   roles: () => request<string[]>('/api/users/roles'),
@@ -85,5 +85,6 @@ export const api = {
   resetPassword: (id: string, password: string) => request<void>(`/api/users/${id}/password`, { method: 'POST', body: JSON.stringify({ password }) }),
   exportBackup: () => download('/api/backup', 'sanjcorp3d-backup.json'),
   restoreBackup: (backup: unknown, confirmation: string) => request<{ message: string; quotes: number }>('/api/backup/restore', { method: 'POST', body: JSON.stringify({ backup, confirmation }) }),
-  tenants: () => request<Profile['workspaces']>('/api/tenants'),
+  tenants: () => request<Tenant[]>('/api/tenants'),
+  createMakerUser: (tenantId: string, item: { username: string; displayName: string; email?: string; password: string }) => request<UserAccount>(`/api/tenants/${tenantId}/users`, { method: 'POST', body: JSON.stringify(item) }),
 }

@@ -1,0 +1,27 @@
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace SanjCorp3D.Api.Data.Migrations;
+
+[Migration("20260912120000_AddSaleCreatedByUser")]
+public partial class AddSaleCreatedByUser : Migration
+{
+    protected override void Up(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.AddColumn<Guid>(
+            name: "CreatedByUserId",
+            schema: "sanjcorp",
+            table: "Sales",
+            type: "uuid",
+            nullable: true);
+    }
+
+    protected override void Down(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.DropColumn(
+            name: "CreatedByUserId",
+            schema: "sanjcorp",
+            table: "Sales");
+    }
+}

@@ -629,6 +629,9 @@ namespace SanjCorp3D.Api.Data.Migrations
                     b.Property<long>("QuoteId")
                         .HasColumnType("bigint");
 
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<decimal>("SaleAmount")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");

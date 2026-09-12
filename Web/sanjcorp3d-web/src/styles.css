@@ -67,6 +67,7 @@ h3 { margin: 0; font-size: .98rem; }
 .login-card button { width: 100%; margin-top: .8rem; }
 .login-card .lock { margin-bottom: 1.5rem; }
 .login-card .error { color: #ffd3d0; background: #401f1c; padding: .8rem; border-radius: 8px; }
+.supreme-login { background: #234c3f; color: #dff9ef; border-color: #356454; }
 
 /* Application shell */
 .app-shell { min-height: 100vh; display: grid; grid-template-columns: 260px minmax(0, 1fr); }
@@ -122,6 +123,12 @@ h3 { margin: 0; font-size: .98rem; }
 .page-actions, .button-group { display: flex; flex-wrap: wrap; gap: .65rem; }
 .panel { background: var(--surface); border: 1px solid var(--line-soft); border-radius: 13px; padding: clamp(1rem, 2vw, 1.4rem); }
 .top-gap { margin-top: 1rem; }
+.maker-cards { display: grid; gap: .6rem; }
+.maker-card { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .75rem; border: 1px solid var(--line-soft); border-radius: 9px; background: #0b1613; }
+.maker-card.selected { border-color: #4a8c76; background: #10231d; }
+.maker-card-select { display: grid; justify-items: start; flex: 1; padding: .2rem; background: transparent; color: var(--text); text-align: left; }
+.maker-card-select:hover:not(:disabled) { background: transparent; color: var(--mint); }
+.maker-card small { color: var(--muted); font-size: .7rem; font-weight: 500; }
 .section-title { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.15rem; }
 .section-title > div { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
 .section-title .eyebrow { flex-basis: 100%; margin-bottom: -.35rem; }

@@ -30,7 +30,7 @@ public sealed class UsersController(UserManager<ApplicationUser> users, TenantCo
     [HttpGet("roles")]
     public IActionResult Roles() => Ok(new[] { AppRoles.Administrator, AppRoles.Sales, AppRoles.Production, AppRoles.Viewer });
 
-    [HttpPost]
+    [Authorize(Roles = AppRoles.SuperAdmin), HttpPost]
     public async Task<IActionResult> Create(CreateUserRequest request)
     {
         Validate(request.Username, request.DisplayName, request.Role);

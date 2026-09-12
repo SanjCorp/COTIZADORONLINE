@@ -86,5 +86,7 @@ export const api = {
   exportBackup: () => download('/api/backup', 'sanjcorp3d-backup.json'),
   restoreBackup: (backup: unknown, confirmation: string) => request<{ message: string; quotes: number }>('/api/backup/restore', { method: 'POST', body: JSON.stringify({ backup, confirmation }) }),
   tenants: () => request<Tenant[]>('/api/tenants'),
+  createMakerTenant: (item: { name: string; slug: string; logoUrl?: string; username: string; displayName: string; email?: string; password: string }) => request<Tenant>('/api/tenants', { method: 'POST', body: JSON.stringify(item) }),
+  updateTenant: (id: string, item: { name: string; logoUrl?: string; active: boolean }) => request<Tenant>(`/api/tenants/${id}`, { method: 'PUT', body: JSON.stringify(item) }),
   createMakerUser: (tenantId: string, item: { username: string; displayName: string; email?: string; password: string }) => request<UserAccount>(`/api/tenants/${tenantId}/users`, { method: 'POST', body: JSON.stringify(item) }),
 }

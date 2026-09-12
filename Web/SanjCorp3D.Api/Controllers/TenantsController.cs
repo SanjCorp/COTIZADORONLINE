@@ -76,6 +76,9 @@ public sealed class TenantsController(
         var tenant = await db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == id && x.Kind == "maker", ct);
         if (tenant is null) return NotFound();
         if (!tenant.Active) return BadRequest(new { message = "La cuenta Maker está desactivada." });
+        var currentUsers = await users.Users.CountAsync(x => x.TenantId == tenant.Id, ct);
+        if (currentUsers >= 3)
+            return BadRequest(new { message = "Cada cuenta Maker puede tener un máximo de tres usuarios." });
         ValidateUser(request.Username, request.DisplayName);
         var user = new ApplicationUser
         {

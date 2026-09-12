@@ -82,7 +82,27 @@ app.UseAuthentication();
 app.Use(async (context, next) =>
 {
     var tenantContext = context.RequestServices.GetRequiredService<TenantContext>();
-    if (!tenantContext.Initialize(context.User, context.Request.Headers[TenantContext.HeaderName].FirstOrDefault()))
+    var requestedTenant = context.Request.Headers[TenantContext.HeaderName].FirstOrDefault();
+    var initialized = tenantContext.Initialize(context.User, requestedTenant);
+    // A cookie issued before the tenant claim was added can still be valid.
+    // Recover only the authenticated user's own tenant from the database; a
+    // requested header that differs from it remains forbidden.
+    if (!initialized && context.User.Identity?.IsAuthenticated == true &&
+        !context.User.IsInRole(AppRoles.SuperAdmin) &&
+        string.IsNullOrWhiteSpace(context.User.FindFirst(TenantContext.ClaimType)?.Value))
+    {
+        var userManager = context.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
+        var db = context.RequestServices.GetRequiredService<AppDbContext>();
+        var user = await userManager.GetUserAsync(context.User);
+        if (user?.Active == true && user.TenantId is Guid tenantId &&
+            (!Guid.TryParse(requestedTenant, out var requestedId) || requestedId == tenantId) &&
+            await db.Tenants.IgnoreQueryFilters().AnyAsync(x => x.Id == tenantId && x.Active))
+        {
+            tenantContext.Use(tenantId);
+            initialized = true;
+        }
+    }
+    if (!initialized)
     {
         context.Response.StatusCode = StatusCodes.Status403Forbidden;
         await context.Response.WriteAsJsonAsync(new { message = "No tienes acceso a este espacio de trabajo." });

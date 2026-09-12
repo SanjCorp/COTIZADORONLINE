@@ -25,14 +25,18 @@ export function SupremeAdminPage({ profile, mode }: { profile: Profile; mode: Mo
   const loadTenants = useCallback(async () => {
     const items = await api.tenants()
     setTenants(items)
-    setSelected(current => current && items.some(x => x.id === current) ? current : mode === 'makers' ? (items.find(x => x.kind === 'maker')?.id ?? '') : technology)
+    setSelected(current => {
+      const currentTenant = items.find(x => x.id === current)
+      if (mode === 'makers') return currentTenant?.kind === 'maker' ? current : (items.find(x => x.kind === 'maker')?.id ?? '')
+      return currentTenant?.kind === 'technology' ? current : technology
+    })
   }, [mode, technology])
   useEffect(() => { loadTenants().catch(e => setError((e as Error).message)) }, [loadTenants])
   const tenant = tenants.find(x => x.id === selected)
   const isMaker = tenant?.kind === 'maker'
 
   useEffect(() => {
-    if (!selected) return
+    if (!selected) { setReport(undefined); setUsers([]); return }
     sessionStorage.setItem('sanjcorp.tenant', selected)
     setBusy(true); setError('')
     Promise.all([api.report(from, to, isMaker && userId ? userId : undefined), api.users()])

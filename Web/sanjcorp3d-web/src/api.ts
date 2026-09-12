@@ -83,6 +83,7 @@ export const api = {
   createUser: (item: { username: string; displayName: string; email?: string; password: string; role: string }) => request<UserAccount>('/api/users', { method: 'POST', body: JSON.stringify(item) }),
   updateUser: (id: string, item: { displayName: string; email?: string; role: string; active: boolean }) => request<UserAccount>(`/api/users/${id}`, { method: 'PUT', body: JSON.stringify(item) }),
   resetPassword: (id: string, password: string) => request<void>(`/api/users/${id}/password`, { method: 'POST', body: JSON.stringify({ password }) }),
+  deleteUser: (id: string) => request<void>(`/api/users/${id}`, { method: 'DELETE' }),
   exportBackup: () => download('/api/backup', 'sanjcorp3d-backup.json'),
   restoreBackup: (backup: unknown, confirmation: string) => request<{ message: string; quotes: number }>('/api/backup/restore', { method: 'POST', body: JSON.stringify({ backup, confirmation }) }),
   tenants: () => request<Tenant[]>('/api/tenants'),

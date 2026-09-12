@@ -95,6 +95,16 @@ public sealed class UsersController(UserManager<ApplicationUser> users, TenantCo
         return result.Succeeded ? NoContent() : IdentityError(result);
     }
 
+    [Authorize(Roles = AppRoles.SuperAdmin), HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var tenantId = tenantContext.CurrentTenantId ?? throw new InvalidOperationException("No se seleccionó un espacio de trabajo.");
+        var user = await users.Users.FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId, cancellationToken);
+        if (user is null) return NotFound();
+        var result = await users.DeleteAsync(user);
+        return result.Succeeded ? NoContent() : IdentityError(result);
+    }
+
     private async Task<bool> IsLastActiveAdministrator(ApplicationUser target)
     {
         var tenantId = tenantContext.CurrentTenantId;

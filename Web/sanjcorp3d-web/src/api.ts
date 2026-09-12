@@ -16,7 +16,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   })
   if (!response.ok) {
     const body = await response.json().catch(() => ({})) as { message?: string; title?: string; requiresTwoFactor?: boolean }
-    const error = new Error(body.message ?? body.title ?? 'No se pudo completar la operación.') as ApiError
+    const error = new Error(body.message ?? (response.status >= 500 ? 'El servidor no pudo completar la operación. Revisa los registros de Render.' : body.title) ?? 'No se pudo completar la operación.') as ApiError
     error.status = response.status
     error.requiresTwoFactor = body.requiresTwoFactor
     throw error

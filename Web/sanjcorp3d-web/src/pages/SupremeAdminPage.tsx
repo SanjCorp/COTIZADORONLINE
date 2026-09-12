@@ -23,6 +23,7 @@ export function SupremeAdminPage({ profile, mode }: { profile: Profile; mode: Mo
   const makers = tenants.filter(x => x.kind === 'maker')
 
   const loadTenants = useCallback(async () => {
+    setError('')
     const items = await api.tenants()
     setTenants(items)
     setSelected(current => {
@@ -84,7 +85,7 @@ export function SupremeAdminPage({ profile, mode }: { profile: Profile; mode: Mo
   }
 
   return <>
-    <PageHeader eyebrow="ADMINISTRACIÓN SUPREMA" title={mode === 'makers' ? 'Makers' : 'SanjCorp Technology'} description="Consulta reportes y administra los accesos sin mezclar datos entre espacios." actions={mode === 'makers' ? <button onClick={() => setMakerDraft(true)}><Plus size={16} />Nueva cuenta Maker</button> : undefined} />
+    <PageHeader eyebrow="ADMINISTRACIÓN SUPREMA" title={mode === 'makers' ? 'Makers' : 'SanjCorp Technology'} description="Consulta reportes y administra los accesos sin mezclar datos entre espacios." actions={mode === 'makers' ? <button onClick={() => { setError(''); setMakerDraft(true) }}><Plus size={16} />Nueva cuenta Maker</button> : undefined} />
     <ErrorMessage error={error} />
     <div className="tabs"><button className={tab === 'summary' ? 'active' : ''} onClick={() => setTab('summary')}><BarChart3 size={16} />Reportes y ventas</button><button className={tab === 'users' ? 'active' : ''} onClick={() => setTab('users')}><Users size={16} />Usuarios</button></div>
     {mode === 'makers' && <section className="panel maker-list"><div className="section-title"><div><p className="eyebrow">CUENTAS MAKER</p><h2>Espacios independientes</h2></div><span className="muted">{makers.length} cuenta{makers.length === 1 ? '' : 's'}</span></div>{makers.length === 0 ? <p className="muted">Todavía no hay cuentas Maker.</p> : <div className="maker-cards">{makers.map(item => <article className={`maker-card ${selected === item.id ? 'selected' : ''}`} key={item.id}><button className="maker-card-select" onClick={() => { setSelected(item.id); setUserId('') }}><strong>{item.name}</strong><small>{item.userCount} de 3 usuarios · {item.active ? 'Activa' : 'Inactiva'}</small></button><button className={`ghost small ${item.active ? 'danger' : ''}`} disabled={busy} onClick={() => toggleMaker(item)}>{item.active ? <><UserRoundX size={15} />Inactivar</> : <><CheckCircle2 size={15} />Activar</>}</button><button className="ghost small danger" disabled={busy} onClick={() => deleteMaker(item)} aria-label={`Eliminar ${item.name}`}>Eliminar</button></article>)}</div>}</section>}

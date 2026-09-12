@@ -37,27 +37,31 @@ public sealed class TenantsController(
         if (await db.Tenants.IgnoreQueryFilters().AnyAsync(x => x.Slug == slug, ct))
             return Conflict(new { message = "Ya existe una cuenta con ese identificador." });
 
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var tenant = new Tenant
+        var strategy = db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync<IActionResult>(async () =>
         {
-            Id = Guid.NewGuid(), Name = request.Name.Trim(), Slug = slug, Kind = "maker",
-            LogoUrl = CleanLogo(request.LogoUrl), Active = true
-        };
-        db.Tenants.Add(tenant);
-        await db.SaveChangesAsync(ct);
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+            var tenant = new Tenant
+            {
+                Id = Guid.NewGuid(), Name = request.Name.Trim(), Slug = slug, Kind = "maker",
+                LogoUrl = CleanLogo(request.LogoUrl), Active = true
+            };
+            db.Tenants.Add(tenant);
+            await db.SaveChangesAsync(ct);
 
-        var user = new ApplicationUser
-        {
-            UserName = request.Username.Trim(), DisplayName = request.DisplayName.Trim(),
-            Email = NullIfWhiteSpace(request.Email), EmailConfirmed = !string.IsNullOrWhiteSpace(request.Email),
-            TenantId = tenant.Id, Active = true
-        };
-        var created = await users.CreateAsync(user, request.Password);
-        if (!created.Succeeded) return IdentityError(created);
-        var roleResult = await users.AddToRoleAsync(user, AppRoles.Maker);
-        if (!roleResult.Succeeded) return IdentityError(roleResult);
-        await transaction.CommitAsync(ct);
-        return Created($"/api/tenants/{tenant.Id}", ToDto(tenant, 1));
+            var user = new ApplicationUser
+            {
+                UserName = request.Username.Trim(), DisplayName = request.DisplayName.Trim(),
+                Email = NullIfWhiteSpace(request.Email), EmailConfirmed = !string.IsNullOrWhiteSpace(request.Email),
+                TenantId = tenant.Id, Active = true
+            };
+            var created = await users.CreateAsync(user, request.Password);
+            if (!created.Succeeded) return IdentityError(created);
+            var roleResult = await users.AddToRoleAsync(user, AppRoles.Maker);
+            if (!roleResult.Succeeded) return IdentityError(roleResult);
+            await transaction.CommitAsync(ct);
+            return Created($"/api/tenants/{tenant.Id}", ToDto(tenant, 1));
+        });
     }
 
     [HttpPut("{id:guid}")]
@@ -78,31 +82,35 @@ public sealed class TenantsController(
         var tenant = await db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == id && x.Kind == "maker", ct);
         if (tenant is null) return NotFound();
 
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var tenantUsers = await users.Users.Where(x => x.TenantId == id).ToListAsync(ct);
-        foreach (var user in tenantUsers)
+        var strategy = db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync<IActionResult>(async () =>
         {
-            var deleted = await users.DeleteAsync(user);
-            if (!deleted.Succeeded) return IdentityError(deleted);
-        }
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+            var tenantUsers = await users.Users.Where(x => x.TenantId == id).ToListAsync(ct);
+            foreach (var user in tenantUsers)
+            {
+                var deleted = await users.DeleteAsync(user);
+                if (!deleted.Succeeded) return IdentityError(deleted);
+            }
 
-        // The context normally points at the selected workspace. Switch it to
-        // the target before deleting tenant-scoped entities so the safety stamp
-        // does not reject a deliberate supreme-admin deletion.
-        tenantContext.Use(id);
-        db.SaleConsumables.RemoveRange(await db.SaleConsumables.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
-        db.Sales.RemoveRange(await db.Sales.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
-        db.QuoteConsumables.RemoveRange(await db.QuoteConsumables.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
-        db.QuoteMaterials.RemoveRange(await db.QuoteMaterials.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
-        db.Quotes.RemoveRange(await db.Quotes.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
-        db.Printers.RemoveRange(await db.Printers.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
-        db.Consumables.RemoveRange(await db.Consumables.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
-        db.Materials.RemoveRange(await db.Materials.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
-        db.BusinessSettings.RemoveRange(await db.BusinessSettings.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
-        db.Tenants.Remove(tenant);
-        await db.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
-        return NoContent();
+            // The context normally points at the selected workspace. Switch it to
+            // the target before deleting tenant-scoped entities so the safety stamp
+            // does not reject a deliberate supreme-admin deletion.
+            tenantContext.Use(id);
+            db.SaleConsumables.RemoveRange(await db.SaleConsumables.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
+            db.Sales.RemoveRange(await db.Sales.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
+            db.QuoteConsumables.RemoveRange(await db.QuoteConsumables.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
+            db.QuoteMaterials.RemoveRange(await db.QuoteMaterials.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
+            db.Quotes.RemoveRange(await db.Quotes.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
+            db.Printers.RemoveRange(await db.Printers.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
+            db.Consumables.RemoveRange(await db.Consumables.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
+            db.Materials.RemoveRange(await db.Materials.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
+            db.BusinessSettings.RemoveRange(await db.BusinessSettings.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
+            db.Tenants.Remove(tenant);
+            await db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            return NoContent();
+        });
     }
 
     [HttpPost("{id:guid}/users")]

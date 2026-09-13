@@ -116,7 +116,7 @@ public sealed class UsersController(UserManager<ApplicationUser> users, TenantCo
 
     private static object ToDto(ApplicationUser user, IEnumerable<string> roles) => new
     {
-        user.Id, user.UserName, user.DisplayName, user.Email, user.ProfilePhotoUrl, user.TenantId, user.Active, user.CreatedAtUtc,
+        user.Id, user.UserName, user.DisplayName, user.Email, user.ProfilePhotoUrl, user.TenantId, user.IsMakerOwner, user.Active, user.CreatedAtUtc,
         user.LastLoginAtUtc, user.TwoFactorEnabled, Role = roles.FirstOrDefault() ?? AppRoles.Viewer
     };
 

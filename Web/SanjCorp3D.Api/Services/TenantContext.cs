@@ -39,4 +39,5 @@ public sealed class TenantContext
     }
 
     public void Use(Guid tenantId) => CurrentTenantId = tenantId;
+
 }

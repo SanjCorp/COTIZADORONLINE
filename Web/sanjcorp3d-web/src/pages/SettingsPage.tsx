@@ -5,7 +5,7 @@ import type { BusinessSettings, Profile, TwoFactorSetup } from '../types'
 import { ErrorMessage, Loading, PageHeader, SuccessMessage } from '../ui'
 
 export function SettingsPage({ profile, isAdmin, onProfileChange }: { profile: Profile; isAdmin: boolean; onProfileChange: (profile: Profile) => void }) {
-  const canEditSettings = isAdmin || profile.tenantKind === 'maker'
+  const canEditSettings = isAdmin || (profile.tenantKind === 'maker' && profile.isMakerOwner === true)
   const [settings, setSettings] = useState<BusinessSettings>()
   const [tab, setTab] = useState<'general' | 'security' | 'backup'>('general')
   const [setup, setSetup] = useState<TwoFactorSetup>(); const [code, setCode] = useState(''); const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])

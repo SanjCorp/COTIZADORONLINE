@@ -66,7 +66,7 @@ public sealed class TenantsController(
             {
                 UserName = request.Username.Trim(), DisplayName = request.DisplayName.Trim(),
                 Email = NullIfWhiteSpace(request.Email), EmailConfirmed = !string.IsNullOrWhiteSpace(request.Email),
-                TenantId = tenant.Id, Active = true
+                TenantId = tenant.Id, Active = true, IsMakerOwner = true
             };
             var created = await users.CreateAsync(user, request.Password);
             if (!created.Succeeded) return IdentityError(created);
@@ -140,7 +140,7 @@ public sealed class TenantsController(
         {
             UserName = request.Username.Trim(), DisplayName = request.DisplayName.Trim(),
             Email = NullIfWhiteSpace(request.Email), EmailConfirmed = !string.IsNullOrWhiteSpace(request.Email),
-            TenantId = tenant.Id, Active = true
+            TenantId = tenant.Id, Active = true, IsMakerOwner = false
         };
         var created = await users.CreateAsync(user, request.Password);
         if (!created.Succeeded) return IdentityError(created);

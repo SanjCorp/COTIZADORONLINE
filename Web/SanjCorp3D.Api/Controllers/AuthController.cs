@@ -110,7 +110,7 @@ public sealed class AuthController(UserManager<ApplicationUser> users, SignInMan
             : new[] { new { id = tenant?.Id, name = tenant?.Name ?? "", slug = tenant?.Slug ?? "", kind = tenant?.Kind ?? "technology", logoUrl = tenant?.LogoUrl, active = tenant?.Active ?? false } }.ToList();
         return new
         {
-            user.Id, user.UserName, user.Email, user.DisplayName, user.ProfilePhotoUrl, user.TenantId,
+            user.Id, user.UserName, user.Email, user.DisplayName, user.ProfilePhotoUrl, user.TenantId, user.IsMakerOwner,
             TenantName = tenant?.Name, TenantKind = tenant?.Kind, LogoUrl = tenant?.LogoUrl,
             IsSuperAdmin = isSuperAdmin, TwoFactorEnabled = await users.GetTwoFactorEnabledAsync(user), Roles = roles,
             Workspaces = workspaces

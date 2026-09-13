@@ -4,6 +4,7 @@ export type Profile = {
   email?: string
   displayName: string
   profilePhotoUrl?: string
+  isMakerOwner?: boolean
   twoFactorEnabled: boolean
   roles: string[]
   tenantId?: string

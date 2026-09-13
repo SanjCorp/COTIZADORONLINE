@@ -189,6 +189,9 @@ namespace SanjCorp3D.Api.Data.Migrations
                     b.Property<bool>("IsSupremeAdmin")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsMakerOwner")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime?>("LastLoginAtUtc")
                         .HasColumnType("timestamp with time zone");
 

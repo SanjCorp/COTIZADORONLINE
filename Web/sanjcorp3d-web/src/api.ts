@@ -7,9 +7,12 @@ export type { Dashboard, Profile } from './types'
 
 type ApiError = Error & { status: number; requiresTwoFactor?: boolean }
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '')
+const apiUrl = (path: string) => `${API_BASE_URL}${path}`
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const tenant = sessionStorage.getItem('sanjcorp.tenant')
-  const response = await fetch(path, {
+  const response = await fetch(apiUrl(path), {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(tenant ? { 'X-Tenant-Id': tenant } : {}), ...options?.headers },
     ...options,
@@ -35,7 +38,7 @@ function query(values: Record<string, string | number | boolean | undefined>) {
 
 async function download(path: string, fallbackName: string) {
   const tenant = sessionStorage.getItem('sanjcorp.tenant')
-  const response = await fetch(path, { credentials: 'include', headers: tenant ? { 'X-Tenant-Id': tenant } : {} })
+  const response = await fetch(apiUrl(path), { credentials: 'include', headers: tenant ? { 'X-Tenant-Id': tenant } : {} })
   if (!response.ok) throw new Error('No se pudo descargar el archivo.')
   const disposition = response.headers.get('content-disposition') ?? ''
   const fileName = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1] ?? fallbackName

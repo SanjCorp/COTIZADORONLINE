@@ -13,13 +13,12 @@ public partial class GlobalPrinterCatalog : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.AddColumn<Guid>(
-            name: "CatalogId",
-            schema: "sanjcorp",
-            table: "Printers",
-            type: "uuid",
-            nullable: false,
-            defaultValue: Guid.Empty);
+        // Some deployments may already contain this column because the
+        // repair SQL was applied manually. Keep this migration idempotent.
+        migrationBuilder.Sql("""
+            ALTER TABLE "sanjcorp"."Printers"
+                ADD COLUMN IF NOT EXISTS "CatalogId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+            """);
 
         // Give old rows a stable global identity based on their normalized name.
         migrationBuilder.Sql("""

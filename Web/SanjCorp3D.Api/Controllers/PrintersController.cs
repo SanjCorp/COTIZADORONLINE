@@ -14,17 +14,16 @@ public sealed class PrintersController(AppDbContext db, TenantContext tenantCont
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] bool includeArchived = false, CancellationToken ct = default)
     {
-        IQueryable<Printer> query;
+        List<Printer> items;
         if (User.IsInRole(AppRoles.SuperAdmin))
         {
-            query = db.Printers.IgnoreQueryFilters().AsNoTracking()
-                .GroupBy(x => x.CatalogId)
-                .Select(x => x.OrderBy(item => item.Id).First());
+            var all = await db.Printers.IgnoreQueryFilters().AsNoTracking().OrderBy(x => x.Id).ToListAsync(ct);
+            items = all.GroupBy(x => x.CatalogId).Select(x => x.First()).ToList();
         }
-        else query = db.Printers.AsNoTracking();
+        else items = await db.Printers.AsNoTracking().OrderBy(x => x.Id).ToListAsync(ct);
 
-        if (!includeArchived) query = query.Where(x => x.Active);
-        return Ok(await query.OrderByDescending(x => x.IsDefault).ThenBy(x => x.Name).ToListAsync(ct));
+        if (!includeArchived) items = items.Where(x => x.Active).ToList();
+        return Ok(items.OrderByDescending(x => x.IsDefault).ThenBy(x => x.Name));
     }
 
     [Authorize(Roles = AppRoles.SuperAdmin), HttpPost]

@@ -49,6 +49,19 @@ public sealed class TenantsController(
             db.Tenants.Add(tenant);
             await db.SaveChangesAsync(ct);
 
+            // New Maker spaces receive every global printer as a local working
+            // copy. Their favorite flags remain independent from other spaces.
+            var catalog = await db.Printers.IgnoreQueryFilters().AsNoTracking()
+                .GroupBy(x => x.CatalogId).Select(x => x.OrderBy(item => item.Id).First()).ToListAsync(ct);
+            tenantContext.Use(tenant.Id);
+            db.Printers.AddRange(catalog.Select(x => new Printer
+            {
+                CatalogId = x.CatalogId, Name = x.Name, BuildX = x.BuildX, BuildY = x.BuildY,
+                BuildZ = x.BuildZ, Nozzle = x.Nozzle, Speed = x.Speed, PowerWatts = x.PowerWatts,
+                HourlyCost = x.HourlyCost, IsDefault = false, Active = x.Active
+            }));
+            await db.SaveChangesAsync(ct);
+
             var user = new ApplicationUser
             {
                 UserName = request.Username.Trim(), DisplayName = request.DisplayName.Trim(),

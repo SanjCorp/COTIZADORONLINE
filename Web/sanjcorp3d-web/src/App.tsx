@@ -47,7 +47,7 @@ function Application({ profile, onProfileChange, onLogout }: { profile: Profile;
   const isSuperAdmin = profile.isSuperAdmin === true || profile.roles.includes('SuperAdmin')
   const [supremeMode, setSupremeMode] = useState<'technology' | 'makers'>(() => (sessionStorage.getItem('sanjcorp.mode') as 'technology' | 'makers') || 'technology')
   const isAdmin = isSuperAdmin || profile.roles.includes('Administrator')
-  const canCatalog = isSuperAdmin || hasAnyRole(profile.roles, ['Administrator', 'Production', 'Maker'])
+  const canCatalog = hasAnyRole(profile.roles, ['Administrator', 'Production', 'Maker'])
   const canSale = isSuperAdmin || hasAnyRole(profile.roles, ['Administrator', 'Sales', 'Maker'])
   const goTo = (next: string) => { window.location.hash = next; setRoute(next); setMobileOpen(false) }
   const navigation: Array<{ key: PageKey; label: string; icon: typeof Gauge; admin?: boolean }> = [
@@ -63,7 +63,7 @@ function Application({ profile, onProfileChange, onLogout }: { profile: Profile;
   switch (page) {
     case 'supreme': content = isSuperAdmin ? <SupremeAdminPage profile={profile} mode={supremeMode} /> : <DashboardPage goTo={goTo} />; break
     case 'quote': content = <QuotePage canWrite={canSale} />; break
-    case 'printers': content = <PrintersPage canEdit={canCatalog} />; break
+    case 'printers': content = <PrintersPage canManage={isSuperAdmin} canFavorite={!isSuperAdmin} />; break
     case 'consumables': content = <ConsumablesPage canEdit={canCatalog} />; break
     case 'materials': content = <MaterialsPage canEdit={canCatalog} />; break
     case 'history': content = <HistoryPage initialId={initialHistoryId} canSale={canSale} isAdmin={isAdmin} />; break

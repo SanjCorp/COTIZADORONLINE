@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, Boxes, Edit3, Plus, Printer as PrinterIcon, RefreshCw } from 'lucide-react'
+import { Archive, Boxes, Edit3, Plus, Printer as PrinterIcon, RefreshCw, Star } from 'lucide-react'
 import { api } from '../api'
 import type { Consumable, ExtraMaterial, Printer } from '../types'
 import { Empty, ErrorMessage, Loading, PageHeader, Status, SuccessMessage, money, number, weight } from '../ui'
@@ -8,7 +8,7 @@ const blankPrinter: Printer = { id: 0, name: '', buildX: 220, buildY: 220, build
 const blankConsumable: Consumable = { id: 0, name: '', category: 'Filamento', material: 'PLA', color: '', pricePerUnit: 0, density: 1.24, isDefault: false, active: true, stockQuantity: 0, stockGrams: 0, lowStockGrams: 1000 }
 const blankMaterial: ExtraMaterial = { id: 0, name: '', category: 'Acabado', unit: 'unidad', unitPrice: 0, active: true }
 
-export function PrintersPage({ canEdit }: { canEdit: boolean }) {
+export function PrintersPage({ canManage = false, canFavorite = false }: { canManage?: boolean; canFavorite?: boolean }) {
   const [items, setItems] = useState<Printer[]>([])
   const [includeArchived, setIncludeArchived] = useState(false)
   const [draft, setDraft] = useState<Printer | null>(null)
@@ -22,16 +22,17 @@ export function PrintersPage({ canEdit }: { canEdit: boolean }) {
     catch (reason) { setError((reason as Error).message) }
   }
   async function archive(item: Printer) { if (!window.confirm(`¿Archivar la impresora ${item.name}? El historial se conservará.`)) return; try { await api.archivePrinter(item.id); setDraft(null); load() } catch (reason) { setError((reason as Error).message) } }
+  async function favorite(item: Printer) { setError(''); try { await api.favoritePrinter(item.id, !item.isDefault); setItems(current => current.map(x => x.id === item.id ? { ...x, isDefault: !item.isDefault } : x)); setSuccess(item.isDefault ? 'Impresora retirada de favoritas.' : 'Impresora agregada a favoritas.') } catch (reason) { setError((reason as Error).message) } }
 
   return <>
-    <PageHeader eyebrow="CATÁLOGO" title="Impresoras" description="Volumen, boquilla, velocidad y consumo eléctrico de cada equipo." actions={canEdit && <button onClick={() => setDraft({ ...blankPrinter })}><Plus size={17} />Nueva impresora</button>} />
+    <PageHeader eyebrow="CATÁLOGO GLOBAL" title="Impresoras" description={canManage ? 'Catálogo compartido con todas las cuentas.' : 'Elige las impresoras favoritas que usará tu espacio.'} actions={canManage && <button onClick={() => setDraft({ ...blankPrinter })}><Plus size={17} />Nueva impresora</button>} />
     <ErrorMessage error={error} /><SuccessMessage message={success} />
     <div className={`catalog-layout ${draft ? 'with-editor' : ''}`}>
       <section className="panel">
         <div className="toolbar"><label className="check"><input type="checkbox" checked={includeArchived} onChange={e => setIncludeArchived(e.target.checked)} />Mostrar archivadas</label><button className="icon ghost" onClick={load} aria-label="Actualizar"><RefreshCw size={16} /></button></div>
         {loading ? <Loading /> : items.length === 0 ? <Empty>No hay impresoras registradas.</Empty> : <div className="card-grid">{items.map(item => <article className={`catalog-card ${!item.active ? 'archived' : ''}`} key={item.id}>
-          <div className="catalog-icon"><PrinterIcon size={22} /></div><div className="catalog-main"><div><h3>{item.name}</h3>{item.isDefault && <span className="preferred">PREDETERMINADA</span>}</div><p>{number(item.buildX, 0)} × {number(item.buildY, 0)} × {number(item.buildZ, 0)} mm</p><small>Boquilla {number(item.nozzle)} mm · {number(item.speed)} mm/s · {number(item.powerWatts, 0)} W</small></div><Status active={item.active} />
-          {canEdit && <div className="card-actions"><button className="ghost small" onClick={() => setDraft({ ...item })}><Edit3 size={15} />Editar</button>{item.active && <button className="ghost small danger-text" onClick={() => archive(item)}><Archive size={15} />Archivar</button>}</div>}
+          <div className="catalog-icon"><PrinterIcon size={22} /></div><div className="catalog-main"><div><h3>{item.name}</h3>{item.isDefault && <span className="preferred">FAVORITA</span>}</div><p>{number(item.buildX, 0)} × {number(item.buildY, 0)} × {number(item.buildZ, 0)} mm</p><small>Boquilla {number(item.nozzle)} mm · {number(item.speed)} mm/s · {number(item.powerWatts, 0)} W</small></div><Status active={item.active} />
+          <div className="card-actions">{canFavorite && item.active && <button className={`ghost small ${item.isDefault ? 'favorite-active' : ''}`} onClick={() => favorite(item)}><Star size={15} fill={item.isDefault ? 'currentColor' : 'none'} />{item.isDefault ? 'Favorita' : 'Elegir'}</button>}{canManage && <><button className="ghost small" onClick={() => setDraft({ ...item })}><Edit3 size={15} />Editar</button>{item.active && <button className="ghost small danger-text" onClick={() => archive(item)}><Archive size={15} />Archivar</button>}</>}</div>
         </article>)}</div>}
       </section>
       {draft && <form className="panel editor" onSubmit={save}>
@@ -39,7 +40,7 @@ export function PrintersPage({ canEdit }: { canEdit: boolean }) {
         <label>Nombre<input required maxLength={100} value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} /></label>
         <div className="form-grid three"><label>Ancho X (mm)<input type="number" min="1" step="0.1" value={draft.buildX} onChange={e => setDraft({ ...draft, buildX: Number(e.target.value) })} /></label><label>Fondo Y (mm)<input type="number" min="1" step="0.1" value={draft.buildY} onChange={e => setDraft({ ...draft, buildY: Number(e.target.value) })} /></label><label>Alto Z (mm)<input type="number" min="1" step="0.1" value={draft.buildZ} onChange={e => setDraft({ ...draft, buildZ: Number(e.target.value) })} /></label></div>
         <div className="form-grid two"><label>Boquilla (mm)<input type="number" min="0.1" step="0.1" value={draft.nozzle} onChange={e => setDraft({ ...draft, nozzle: Number(e.target.value) })} /></label><label>Velocidad (mm/s)<input type="number" min="1" step="1" value={draft.speed} onChange={e => setDraft({ ...draft, speed: Number(e.target.value) })} /></label><label>Potencia (W)<input type="number" min="0" step="1" value={draft.powerWatts} onChange={e => setDraft({ ...draft, powerWatts: Number(e.target.value) })} /></label><label>Costo/hora referencial<input type="number" min="0" step="0.01" value={draft.hourlyCost} onChange={e => setDraft({ ...draft, hourlyCost: Number(e.target.value) })} /></label></div>
-        <label className="check"><input type="checkbox" checked={draft.isDefault} onChange={e => setDraft({ ...draft, isDefault: e.target.checked })} />Usar como impresora predeterminada</label>
+        <p className="field-help">Las impresoras favoritas se eligen desde cada espacio de trabajo.</p>
         {draft.id > 0 && <label className="check"><input type="checkbox" checked={draft.active} onChange={e => setDraft({ ...draft, active: e.target.checked })} />Activa</label>}
         <div className="editor-actions"><button type="button" className="ghost" onClick={() => setDraft(null)}>Cancelar</button><button>Guardar</button></div>
       </form>}

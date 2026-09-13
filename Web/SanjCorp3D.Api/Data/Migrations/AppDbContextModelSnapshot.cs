@@ -367,6 +367,9 @@ namespace SanjCorp3D.Api.Data.Migrations
                     b.Property<bool>("Active")
                         .HasColumnType("boolean");
 
+                    b.Property<Guid>("CatalogId")
+                        .HasColumnType("uuid");
+
                     b.Property<decimal>("BuildX")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
@@ -409,6 +412,8 @@ namespace SanjCorp3D.Api.Data.Migrations
 
                     b.HasIndex("TenantId", "Name")
                         .IsUnique();
+
+                    b.HasIndex("CatalogId");
 
                     b.ToTable("Printers", "sanjcorp");
                 });

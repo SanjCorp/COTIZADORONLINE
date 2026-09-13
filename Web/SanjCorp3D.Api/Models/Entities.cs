@@ -18,6 +18,7 @@ public sealed class Printer : IActiveEntity, ITenantEntity
 {
     public long Id { get; set; }
     public Guid TenantId { get; set; }
+    public Guid CatalogId { get; set; }
     public required string Name { get; set; }
     public decimal BuildX { get; set; }
     public decimal BuildY { get; set; }

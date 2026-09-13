@@ -30,8 +30,9 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
   useEffect(() => {
     Promise.all([api.printers(), api.consumables(), api.materials(), api.settings()])
       .then(([printerItems, consumableItems, materialItems, configuration]) => {
-        setPrinters(printerItems); setConsumables(consumableItems); setMaterials(materialItems); setSettings(configuration)
-        setForm(current => ({ ...current, printerId: printerItems.find(x => x.isDefault)?.id ?? printerItems[0]?.id ?? 0, profitMultiplier: configuration.defaultProfitMultiplier }))
+        const favoritePrinters = printerItems.filter(x => x.isDefault)
+        setPrinters(favoritePrinters); setConsumables(consumableItems); setMaterials(materialItems); setSettings(configuration)
+        setForm(current => ({ ...current, printerId: favoritePrinters[0]?.id ?? 0, profitMultiplier: configuration.defaultProfitMultiplier }))
         setSelectedConsumable(consumableItems.find(x => x.isDefault)?.id ?? consumableItems[0]?.id ?? 0)
         setSelectedMaterial(materialItems[0]?.id ?? 0)
       })
@@ -86,7 +87,7 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
   }
 
   function clear() {
-    setForm({ ...emptyForm, printerId: printers.find(x => x.isDefault)?.id ?? printers[0]?.id ?? 0, profitMultiplier: settings?.defaultProfitMultiplier ?? 1.3 })
+    setForm({ ...emptyForm, printerId: printers[0]?.id ?? 0, profitMultiplier: settings?.defaultProfitMultiplier ?? 1.3 })
     setConsumableLines([]); setMaterialLines([]); setCalculation(undefined); setSaved(undefined); setSold(false); setError(''); setSuccess('')
   }
 
@@ -96,7 +97,8 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
   return <>
     <PageHeader eyebrow="COTIZADOR 3D" title="Nueva cotización" description="Registra los datos de impresión, combina consumibles y obtén el precio con la fórmula original." />
     <ErrorMessage error={error} /><SuccessMessage message={success} />
-    {printers.length === 0 || consumables.length === 0 ? <div className="alert error">Necesitas al menos una impresora y un consumible activos antes de cotizar.</div> : null}
+    {printers.length === 0 ? <div className="alert error">Elige al menos una impresora favorita desde el apartado Impresoras antes de cotizar.</div> : null}
+    {consumables.length === 0 ? <div className="alert error">Necesitas al menos un consumible activo antes de cotizar.</div> : null}
     <div className="quote-layout">
       <div className="form-stack">
         <section className="panel">
@@ -156,8 +158,8 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
         </>}
         {saved && <div className="saved-ticket"><CheckCircle2 size={19} /><div><small>Código guardado</small><strong>{saved.orderCode}</strong></div><StatusSale sold={sold} /></div>}
         <div className="summary-actions">
-          <button className="secondary" disabled={busy} onClick={calculate}><Calculator size={17} />Calcular precio</button>
-          <button disabled={busy} onClick={save}><Save size={17} />Guardar cotización</button>
+          <button className="secondary" disabled={busy || printers.length === 0 || consumables.length === 0} onClick={calculate}><Calculator size={17} />Calcular precio</button>
+          <button disabled={busy || printers.length === 0 || consumables.length === 0} onClick={save}><Save size={17} />Guardar cotización</button>
           {saved && !sold && <button className="sale-button" disabled={busy} onClick={confirmSale}><ShoppingBag size={17} />Confirmar venta</button>}
           <button className="ghost" disabled={busy} onClick={clear}><RotateCcw size={16} />Limpiar</button>
         </div>

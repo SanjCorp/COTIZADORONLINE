@@ -36,6 +36,7 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
         builder.HasDefaultSchema("sanjcorp");
         builder.Entity<Tenant>().HasIndex(x => x.Slug).IsUnique();
         builder.Entity<Printer>().HasIndex(x => new { x.TenantId, x.Name }).IsUnique();
+        builder.Entity<Printer>().HasIndex(x => x.CatalogId);
         builder.Entity<Consumable>().HasIndex(x => new { x.TenantId, x.Name, x.Material, x.Color }).IsUnique();
         builder.Entity<Consumable>().Property(x => x.StockGrams).HasDefaultValue(0m);
         builder.Entity<Consumable>().Property(x => x.LowStockGrams).HasDefaultValue(1000m);

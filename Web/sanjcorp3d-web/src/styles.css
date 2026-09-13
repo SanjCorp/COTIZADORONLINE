@@ -277,6 +277,7 @@ tr.clickable { cursor: pointer; }
 .tabs { display: flex; gap: .3rem; margin-bottom: 1rem; border-bottom: 1px solid var(--line); }
 .tabs button { border: 0; border-radius: 0; background: transparent; color: var(--muted); padding: .75rem 1rem; border-bottom: 2px solid transparent; }
 .tabs button.active { color: var(--mint); border-bottom-color: var(--mint); }
+.favorite-active { color: var(--mint) !important; border-color: #3a806b !important; }
 .settings-form { max-width: 1000px; }
 .formula-note { display: flex; gap: .6rem; flex-direction: column; margin-top: 1.2rem; padding: .85rem 1rem; color: #a9bbb5; background: #0a1512; border-left: 3px solid var(--mint); font-size: .76rem; }
 .formula-note strong { color: white; }

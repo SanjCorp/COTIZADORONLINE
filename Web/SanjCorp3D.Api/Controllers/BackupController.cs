@@ -73,7 +73,6 @@ public sealed class BackupController(AppDbContext db) : ControllerBase
             await db.Quotes.ExecuteDeleteAsync(cancellationToken);
             await db.Consumables.ExecuteDeleteAsync(cancellationToken);
             await db.Materials.ExecuteDeleteAsync(cancellationToken);
-            await db.Printers.ExecuteDeleteAsync(cancellationToken);
             await db.BusinessSettings.ExecuteDeleteAsync(cancellationToken);
 
             var consumableEntities = request.Backup.Consumables.Select(x => new Consumable
@@ -93,11 +92,10 @@ public sealed class BackupController(AppDbContext db) : ControllerBase
             }).ToList();
             foreach (var item in consumableEntities) SyncLegacyQuantity(item);
 
-            db.Printers.AddRange(request.Backup.Printers.Select(x => new Printer
-            {
-                Name = x.Name, BuildX = x.BuildX, BuildY = x.BuildY, BuildZ = x.BuildZ, Nozzle = x.Nozzle,
-                Speed = x.Speed, PowerWatts = x.PowerWatts, HourlyCost = x.HourlyCost, IsDefault = x.IsDefault, Active = x.Active
-            }));
+            var favoriteNames = request.Backup.Printers.Where(x => x.IsDefault)
+                .Select(x => x.Name.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var printer in await db.Printers.ToListAsync(cancellationToken))
+                printer.IsDefault = favoriteNames.Contains(printer.Name);
             db.Consumables.AddRange(consumableEntities);
             db.Materials.AddRange(request.Backup.Materials.Select(x => new ExtraMaterial { Name = x.Name, Category = x.Category, Unit = x.Unit, UnitPrice = x.UnitPrice, Active = x.Active }));
             db.BusinessSettings.AddRange(request.Backup.Settings.Select(x => new BusinessSetting { Key = x.Key, Value = x.Value }));

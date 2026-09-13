@@ -58,6 +58,7 @@ export const api = {
   printers: (includeArchived = false) => request<Printer[]>(`/api/printers${query({ includeArchived })}`),
   savePrinter: (item: Printer) => item.id ? request<Printer>(`/api/printers/${item.id}`, { method: 'PUT', body: JSON.stringify(item) }) : request<Printer>('/api/printers', { method: 'POST', body: JSON.stringify(item) }),
   archivePrinter: (id: number) => request<void>(`/api/printers/${id}`, { method: 'DELETE' }),
+  favoritePrinter: (id: number, favorite: boolean) => request<Printer>(`/api/printers/${id}/favorite`, { method: 'PUT', body: JSON.stringify({ favorite }) }),
   consumables: (includeArchived = false) => request<Consumable[]>(`/api/consumables${query({ includeArchived })}`),
   saveConsumable: (item: Consumable) => item.id ? request<Consumable>(`/api/consumables/${item.id}`, { method: 'PUT', body: JSON.stringify(item) }) : request<Consumable>('/api/consumables', { method: 'POST', body: JSON.stringify(item) }),
   updateStock: (id: number, stockGrams: number, lowStockGrams: number) => request<Consumable>(`/api/consumables/${id}/stock`, { method: 'PATCH', body: JSON.stringify({ stockGrams, lowStockGrams }) }),

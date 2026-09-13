@@ -34,7 +34,18 @@ public sealed class PrintersController(AppDbContext db, TenantContext tenantCont
         input.Active = true;
         input.IsDefault = false;
         Validate(input);
-        if (await NameExists(input.Name, null, ct)) return Conflict(new { message = "Ya existe una impresora con ese nombre en el catálogo global." });
+        var existing = await db.Printers.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.Name.ToLower() == input.Name.Trim().ToLower())
+            .OrderBy(x => x.Id).FirstOrDefaultAsync(ct);
+        if (existing is not null)
+        {
+            if (existing.Active) return Conflict(new { message = "Ya existe una impresora con ese nombre en el catálogo global." });
+            await UpdateCatalog(existing.CatalogId, input, true, ct);
+            input.Id = existing.Id;
+            input.TenantId = existing.TenantId;
+            input.CatalogId = existing.CatalogId;
+            return Ok(input);
+        }
 
         var catalogId = Guid.NewGuid();
         var tenantIds = await db.Tenants.IgnoreQueryFilters().Select(x => x.Id).ToListAsync(ct);
@@ -65,7 +76,13 @@ public sealed class PrintersController(AppDbContext db, TenantContext tenantCont
         if (source is null) return NotFound();
         if (await NameExists(input.Name, source.CatalogId, ct)) return Conflict(new { message = "Ya existe una impresora con ese nombre en el catálogo global." });
 
-        await db.Printers.IgnoreQueryFilters().Where(x => x.CatalogId == source.CatalogId).ExecuteUpdateAsync(setters => setters
+        await UpdateCatalog(source.CatalogId, input, input.Active, ct);
+        return Ok(input);
+    }
+
+    private async Task UpdateCatalog(Guid catalogId, Printer input, bool active, CancellationToken ct)
+    {
+        await db.Printers.IgnoreQueryFilters().Where(x => x.CatalogId == catalogId).ExecuteUpdateAsync(setters => setters
             .SetProperty(x => x.Name, input.Name.Trim())
             .SetProperty(x => x.BuildX, input.BuildX)
             .SetProperty(x => x.BuildY, input.BuildY)
@@ -74,11 +91,16 @@ public sealed class PrintersController(AppDbContext db, TenantContext tenantCont
             .SetProperty(x => x.Speed, input.Speed)
             .SetProperty(x => x.PowerWatts, input.PowerWatts)
             .SetProperty(x => x.HourlyCost, input.HourlyCost)
-            .SetProperty(x => x.Active, input.Active), ct);
-        if (!input.Active)
-            await db.Printers.IgnoreQueryFilters().Where(x => x.CatalogId == source.CatalogId)
+            .SetProperty(x => x.Active, active), ct);
+        if (!active)
+            await db.Printers.IgnoreQueryFilters().Where(x => x.CatalogId == catalogId)
                 .ExecuteUpdateAsync(x => x.SetProperty(p => p.IsDefault, false), ct);
-        return Ok(input);
+    }
+
+    private async Task<bool> NameExists(string name, Guid exceptCatalogId, CancellationToken ct)
+    {
+        var normalized = name.Trim().ToLower();
+        return await db.Printers.IgnoreQueryFilters().AnyAsync(x => x.Name.ToLower() == normalized && x.CatalogId != exceptCatalogId, ct);
     }
 
     [Authorize(Roles = AppRoles.SuperAdmin), HttpDelete("{id:long}")]
@@ -100,12 +122,6 @@ public sealed class PrintersController(AppDbContext db, TenantContext tenantCont
         item.IsDefault = request.Favorite;
         await db.SaveChangesAsync(ct);
         return Ok(item);
-    }
-
-    private async Task<bool> NameExists(string name, Guid? exceptCatalogId, CancellationToken ct)
-    {
-        var normalized = name.Trim().ToLower();
-        return await db.Printers.IgnoreQueryFilters().AnyAsync(x => x.Name.ToLower() == normalized && (!exceptCatalogId.HasValue || x.CatalogId != exceptCatalogId.Value), ct);
     }
 
     private static Printer Copy(Printer source, Guid catalogId) => new()

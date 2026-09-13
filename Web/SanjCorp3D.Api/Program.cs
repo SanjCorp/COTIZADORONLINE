@@ -46,12 +46,19 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.Name = builder.Environment.IsDevelopment() ? "SanjCorp3D.Session" : "__Host-SanjCorp3D.Session";
     options.Cookie.HttpOnly = true;
     options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
-    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.SameSite = builder.Environment.IsDevelopment() ? SameSiteMode.Lax : SameSiteMode.None;
     options.ExpireTimeSpan = TimeSpan.FromHours(8);
     options.SlidingExpiration = true;
     options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = 401; return Task.CompletedTask; };
     options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = 403; return Task.CompletedTask; };
 });
+var corsOrigins = (builder.Configuration["Cors:Origins"] ?? "https://cotizadoronline.vercel.app")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+builder.Services.AddCors(options => options.AddPolicy("Frontend", policy =>
+    policy.WithOrigins(corsOrigins)
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials()));
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<BusinessSettingsService>();
 builder.Services.AddControllers();
@@ -78,6 +85,7 @@ if (!app.Environment.IsDevelopment())
 app.UseRateLimiter();
 app.UseDefaultFiles();
 app.UseStaticFiles();
+app.UseCors("Frontend");
 app.UseAuthentication();
 app.Use(async (context, next) =>
 {

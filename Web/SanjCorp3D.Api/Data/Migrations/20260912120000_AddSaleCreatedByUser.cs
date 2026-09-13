@@ -6,6 +6,7 @@ using SanjCorp3D.Api.Data;
 
 namespace SanjCorp3D.Api.Data.Migrations;
 
+[DbContext(typeof(AppDbContext))]
 [Migration("20260912120000_AddSaleCreatedByUser")]
 public partial class AddSaleCreatedByUser : Migration
 {

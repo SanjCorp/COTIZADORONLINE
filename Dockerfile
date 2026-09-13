@@ -9,6 +9,10 @@ RUN npm run build
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS api-build
 WORKDIR /src
+# Bump this revision when a migration or API source is added so hosted
+# BuildKit caches cannot reuse an image built without the new files.
+ARG BUILD_REVISION=ac256c9
+RUN echo "Building API revision ${BUILD_REVISION}"
 COPY Web/SanjCorp3D.Api/SanjCorp3D.Api.csproj Web/SanjCorp3D.Api/
 RUN dotnet restore Web/SanjCorp3D.Api/SanjCorp3D.Api.csproj
 COPY Web/SanjCorp3D.Api/ Web/SanjCorp3D.Api/

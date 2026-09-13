@@ -39,6 +39,7 @@ public sealed class UsersController(UserManager<ApplicationUser> users, TenantCo
         {
             UserName = request.Username.Trim(),
             DisplayName = request.DisplayName.Trim(),
+            ProfilePhotoUrl = NormalizePhoto(request.ProfilePhotoUrl),
             Email = NullIfWhiteSpace(request.Email),
             EmailConfirmed = !string.IsNullOrWhiteSpace(request.Email), TenantId = tenantContext.CurrentTenantId,
             Active = true
@@ -69,6 +70,7 @@ public sealed class UsersController(UserManager<ApplicationUser> users, TenantCo
         if (losesAdmin && await IsLastActiveAdministrator(user)) return BadRequest(new { message = "Debe quedar al menos un administrador activo." });
 
         user.DisplayName = request.DisplayName.Trim();
+        user.ProfilePhotoUrl = NormalizePhoto(request.ProfilePhotoUrl);
         user.Email = NullIfWhiteSpace(request.Email);
         user.EmailConfirmed = !string.IsNullOrWhiteSpace(request.Email);
         user.Active = request.Active;
@@ -114,7 +116,7 @@ public sealed class UsersController(UserManager<ApplicationUser> users, TenantCo
 
     private static object ToDto(ApplicationUser user, IEnumerable<string> roles) => new
     {
-        user.Id, user.UserName, user.DisplayName, user.Email, user.TenantId, user.Active, user.CreatedAtUtc,
+        user.Id, user.UserName, user.DisplayName, user.Email, user.ProfilePhotoUrl, user.TenantId, user.Active, user.CreatedAtUtc,
         user.LastLoginAtUtc, user.TwoFactorEnabled, Role = roles.FirstOrDefault() ?? AppRoles.Viewer
     };
 
@@ -125,5 +127,6 @@ public sealed class UsersController(UserManager<ApplicationUser> users, TenantCo
     }
 
     private static string? NullIfWhiteSpace(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private static string? NormalizePhoto(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Length > 2_000_000 ? throw new ArgumentException("La foto de perfil es demasiado grande.") : value;
     private ObjectResult IdentityError(IdentityResult result) => BadRequest(new { message = string.Join(" ", result.Errors.Select(x => x.Description)) });
 }

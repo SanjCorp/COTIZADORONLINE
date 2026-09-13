@@ -3,6 +3,7 @@ export type Profile = {
   userName: string
   email?: string
   displayName: string
+  profilePhotoUrl?: string
   twoFactorEnabled: boolean
   roles: string[]
   tenantId?: string
@@ -79,7 +80,7 @@ export type SaleSummary = {
 }
 
 export type UserAccount = {
-  id: string; userName: string; displayName: string; email?: string; active: boolean; createdAtUtc: string
+  id: string; userName: string; displayName: string; profilePhotoUrl?: string; email?: string; active: boolean; createdAtUtc: string
   lastLoginAtUtc?: string; twoFactorEnabled: boolean; role: string
 }
 export type Tenant = { id: string; name: string; slug: string; kind: string; logoUrl?: string; active: boolean; userCount: number }

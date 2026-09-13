@@ -59,7 +59,7 @@ public sealed class AuthController(UserManager<ApplicationUser> users, SignInMan
         return user is null || !user.Active ? Unauthorized() : Ok(await Profile(user));
     }
 
-    [Authorize, HttpPost("2fa/setup")]
+    [Authorize(Roles = AppRoles.SuperAdmin), HttpPost("2fa/setup")]
     public async Task<IActionResult> SetupTwoFactor()
     {
         var user = await users.GetUserAsync(User);
@@ -76,7 +76,7 @@ public sealed class AuthController(UserManager<ApplicationUser> users, SignInMan
         return Ok(new { sharedKey = key, authenticatorUri = uri });
     }
 
-    [Authorize, HttpPost("2fa/enable")]
+    [Authorize(Roles = AppRoles.SuperAdmin), HttpPost("2fa/enable")]
     public async Task<IActionResult> EnableTwoFactor(TwoFactorRequest request)
     {
         var user = await users.GetUserAsync(User);
@@ -89,7 +89,7 @@ public sealed class AuthController(UserManager<ApplicationUser> users, SignInMan
         return Ok(new { enabled = true, recoveryCodes });
     }
 
-    [Authorize, HttpPost("2fa/disable")]
+    [Authorize(Roles = AppRoles.SuperAdmin), HttpPost("2fa/disable")]
     public async Task<IActionResult> DisableTwoFactor()
     {
         var user = await users.GetUserAsync(User);
@@ -110,7 +110,7 @@ public sealed class AuthController(UserManager<ApplicationUser> users, SignInMan
             : new[] { new { id = tenant?.Id, name = tenant?.Name ?? "", slug = tenant?.Slug ?? "", kind = tenant?.Kind ?? "technology", logoUrl = tenant?.LogoUrl, active = tenant?.Active ?? false } }.ToList();
         return new
         {
-            user.Id, user.UserName, user.Email, user.DisplayName, user.TenantId,
+            user.Id, user.UserName, user.Email, user.DisplayName, user.ProfilePhotoUrl, user.TenantId,
             TenantName = tenant?.Name, TenantKind = tenant?.Kind, LogoUrl = tenant?.LogoUrl,
             IsSuperAdmin = isSuperAdmin, TwoFactorEnabled = await users.GetTwoFactorEnabledAsync(user), Roles = roles,
             Workspaces = workspaces

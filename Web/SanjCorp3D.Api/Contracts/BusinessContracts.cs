@@ -24,8 +24,8 @@ public sealed record QuoteCalculationDto(
     decimal MaintenanceCost, decimal AdditionalCost, decimal Subtotal,
     decimal ProfitAmount, decimal TaxAmount, decimal RecommendedPrice);
 
-public sealed record CreateUserRequest(string Username, string DisplayName, string? Email, string Password, string Role);
-public sealed record UpdateUserRequest(string DisplayName, string? Email, string Role, bool Active);
+public sealed record CreateUserRequest(string Username, string DisplayName, string? Email, string Password, string Role, string? ProfilePhotoUrl = null);
+public sealed record UpdateUserRequest(string DisplayName, string? Email, string Role, bool Active, string? ProfilePhotoUrl = null);
 public sealed record TenantDto(Guid Id, string Name, string Slug, string Kind, string? LogoUrl, bool Active, DateTime CreatedAtUtc, int UserCount);
 public sealed record CreateMakerTenantRequest(string Name, string Slug, string? LogoUrl, string Username, string DisplayName, string? Email, string Password);
 public sealed record UpdateTenantRequest(string Name, string? LogoUrl, bool Active);

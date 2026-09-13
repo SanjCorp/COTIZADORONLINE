@@ -5,11 +5,11 @@ namespace SanjCorp3D.Api.Services;
 
 public static class QuoteCalculator
 {
-    public sealed record ConsumableLine(Consumable Item, decimal Grams)
+    public sealed record ConsumableLine(Consumable Item, decimal Grams, decimal? CalculatedUnitCost = null)
     {
-        public decimal UnitCost => Item.Category.Equals("Resina", StringComparison.OrdinalIgnoreCase)
+        public decimal UnitCost => CalculatedUnitCost ?? (Item.Category.Equals("Resina", StringComparison.OrdinalIgnoreCase)
             ? Grams / Item.Density / 1000m * Item.PricePerUnit
-            : Grams / 1000m * Item.PricePerUnit;
+            : Grams / 1000m * Item.PricePerUnit);
     }
 
     public sealed record MaterialLine(ExtraMaterial Item, decimal Quantity) { public decimal Cost => Quantity * Item.UnitPrice; }

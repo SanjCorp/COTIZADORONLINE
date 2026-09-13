@@ -260,6 +260,36 @@ namespace SanjCorp3D.Api.Data.Migrations
                     b.ToTable("BusinessSettings", "sanjcorp");
                 });
 
+            modelBuilder.Entity("SanjCorp3D.Api.Models.ChatMessage", b =>
+                {
+                    b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+                    b.Property<string>("Body").IsRequired().HasColumnType("text");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("timestamp with time zone");
+                    b.Property<string>("PhotoUrl").HasColumnType("text");
+                    b.Property<string>("SenderName").IsRequired().HasColumnType("text");
+                    b.Property<Guid>("SenderUserId").HasColumnType("uuid");
+                    b.Property<Guid>("TenantId").HasColumnType("uuid");
+                    b.HasKey("Id");
+                    b.HasIndex("TenantId", "CreatedAtUtc");
+                    b.ToTable("ChatMessages", "sanjcorp");
+                });
+
+            modelBuilder.Entity("SanjCorp3D.Api.Models.ConsumableStockLot", b =>
+                {
+                    b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+                    b.Property<long>("ConsumableId").HasColumnType("bigint");
+                    b.Property<decimal>("OriginalGrams").HasPrecision(18, 4).HasColumnType("numeric(18,4)");
+                    b.Property<decimal>("PricePerKilogram").HasPrecision(18, 4).HasColumnType("numeric(18,4)");
+                    b.Property<DateTime>("ReceivedAtUtc").HasColumnType("timestamp with time zone");
+                    b.Property<decimal>("RemainingGrams").HasPrecision(18, 4).HasColumnType("numeric(18,4)");
+                    b.Property<Guid>("TenantId").HasColumnType("uuid");
+                    b.HasKey("Id");
+                    b.HasIndex("TenantId", "ConsumableId", "ReceivedAtUtc");
+                    b.ToTable("ConsumableStockLots", "sanjcorp");
+                });
+
             modelBuilder.Entity("SanjCorp3D.Api.Models.Consumable", b =>
                 {
                     b.Property<long>("Id")
@@ -447,6 +477,10 @@ namespace SanjCorp3D.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("CustomerPhone")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<decimal>("ElectricityCost")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
@@ -554,6 +588,10 @@ namespace SanjCorp3D.Api.Data.Migrations
                         .HasColumnType("numeric(18,4)");
 
                     b.Property<decimal>("Grams")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<decimal>("PricePerKilogram")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
 
@@ -742,6 +780,26 @@ namespace SanjCorp3D.Api.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("SanjCorp3D.Api.Models.ChatMessage", b =>
+                {
+                    b.HasOne("SanjCorp3D.Api.Models.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SanjCorp3D.Api.Models.ConsumableStockLot", b =>
+                {
+                    b.HasOne("SanjCorp3D.Api.Models.Consumable", "Consumable")
+                        .WithMany("StockLots")
+                        .HasForeignKey("TenantId", "ConsumableId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                    b.Navigation("Consumable");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
                 {
                     b.HasOne("SanjCorp3D.Api.Identity.ApplicationUser", null)
@@ -889,6 +947,11 @@ namespace SanjCorp3D.Api.Data.Migrations
                     b.Navigation("Consumable");
 
                     b.Navigation("Sale");
+                });
+
+            modelBuilder.Entity("SanjCorp3D.Api.Models.Consumable", b =>
+                {
+                    b.Navigation("StockLots");
                 });
 
             modelBuilder.Entity("SanjCorp3D.Api.Models.Quote", b =>

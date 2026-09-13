@@ -44,6 +44,7 @@ public sealed class BackupController(AppDbContext db) : ControllerBase
                 x.Materials.Select(v => new BackupQuoteMaterial(v.LegacyMaterialId, v.Name, v.Quantity, v.UnitPrice, v.LineCost)).ToList(),
                 x.Sale is null ? null : new BackupSale(x.Sale.SoldAtUtc, x.Sale.SaleAmount,
                     consumptionBySale.TryGetValue(x.Sale.Id, out var lines) ? lines : [])
+                , x.CustomerPhone
             )).ToList(),
             settings);
 
@@ -67,6 +68,8 @@ public sealed class BackupController(AppDbContext db) : ControllerBase
             db.ChangeTracker.Clear();
             await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
             await db.SaleConsumables.ExecuteDeleteAsync(cancellationToken);
+            await db.ConsumableStockLots.ExecuteDeleteAsync(cancellationToken);
+            await db.ChatMessages.ExecuteDeleteAsync(cancellationToken);
             await db.Sales.ExecuteDeleteAsync(cancellationToken);
             await db.QuoteConsumables.ExecuteDeleteAsync(cancellationToken);
             await db.QuoteMaterials.ExecuteDeleteAsync(cancellationToken);
@@ -97,6 +100,7 @@ public sealed class BackupController(AppDbContext db) : ControllerBase
             foreach (var printer in await db.Printers.ToListAsync(cancellationToken))
                 printer.IsDefault = favoriteNames.Contains(printer.Name);
             db.Consumables.AddRange(consumableEntities);
+            db.ConsumableStockLots.AddRange(consumableEntities.Where(x => x.StockGrams > 0).Select(x => new ConsumableStockLot { Consumable = x, OriginalGrams = x.StockGrams, RemainingGrams = x.StockGrams, PricePerKilogram = x.PricePerUnit }));
             db.Materials.AddRange(request.Backup.Materials.Select(x => new ExtraMaterial { Name = x.Name, Category = x.Category, Unit = x.Unit, UnitPrice = x.UnitPrice, Active = x.Active }));
             db.BusinessSettings.AddRange(request.Backup.Settings.Select(x => new BusinessSetting { Key = x.Key, Value = x.Value }));
 
@@ -105,7 +109,7 @@ public sealed class BackupController(AppDbContext db) : ControllerBase
             {
                 var quote = new Quote
                 {
-                    OrderCode = source.OrderCode, CreatedAtUtc = source.CreatedAtUtc, Customer = source.Customer,
+                    OrderCode = source.OrderCode, CreatedAtUtc = source.CreatedAtUtc, Customer = source.Customer, CustomerPhone = source.CustomerPhone ?? string.Empty,
                     ProjectName = source.ProjectName, PrinterName = source.PrinterName, PrintHours = source.PrintHours,
                     Quantity = source.Quantity, AdditionalManualCost = source.AdditionalManualCost, ProfitMultiplier = source.ProfitMultiplier,
                     Notes = source.Notes, TotalWeight = source.TotalWeight, MaterialCost = source.MaterialCost,

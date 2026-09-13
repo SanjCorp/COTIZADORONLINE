@@ -33,7 +33,13 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
         Validate(input);
         await ClearDefault(input, ct);
         db.Consumables.Add(input);
-        return await Save(input, ct);
+        var result = await Save(input, ct);
+        if (result is OkObjectResult && input.StockGrams > 0)
+        {
+            db.ConsumableStockLots.Add(new ConsumableStockLot { Consumable = input, OriginalGrams = input.StockGrams, RemainingGrams = input.StockGrams, PricePerKilogram = input.PricePerUnit });
+            await db.SaveChangesAsync(ct);
+        }
+        return result;
     }
 
     [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpPut("{id:long}")]
@@ -55,6 +61,7 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
         item.StockGrams = input.StockGrams;
         item.LowStockGrams = input.LowStockGrams;
         SyncLegacyQuantity(item);
+        await ReplaceLots(item, ct);
         return await Save(item, ct);
     }
 
@@ -73,6 +80,7 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
         item.StockGrams = decimal.Round(total, 4, MidpointRounding.AwayFromZero);
         item.LowStockGrams = decimal.Round(threshold, 4, MidpointRounding.AwayFromZero);
         SyncLegacyQuantity(item);
+        await ReplaceLots(item, ct);
         await db.SaveChangesAsync(ct);
         return Ok(item);
     }
@@ -80,12 +88,39 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
     [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpPost("{id:long}/stock/add")]
     public async Task<IActionResult> AddStock(long id, [FromBody] StockAdditionRequest request, CancellationToken ct)
     {
-        if (request.Kilograms < 0 || request.Grams < 0)
+        if (request.Kilograms < 0 || request.Grams < 0 || request.PricePerKilogram < 0)
             return BadRequest(new { message = "Los kilos y gramos a agregar no pueden ser negativos." });
 
         var item = await db.Consumables.FindAsync([id], ct);
         if (item is null) return NotFound();
-        item.StockGrams = decimal.Round(item.StockGrams + request.Kilograms * 1000m + request.Grams, 4, MidpointRounding.AwayFromZero);
+        var incomingGrams = decimal.Round(request.Kilograms * 1000m + request.Grams, 4, MidpointRounding.AwayFromZero);
+        if (incomingGrams <= 0) return BadRequest(new { message = "Indica una cantidad mayor que cero." });
+        var lots = await db.ConsumableStockLots.Where(x => x.ConsumableId == item.Id).OrderBy(x => x.ReceivedAtUtc).ThenBy(x => x.Id).ToListAsync(ct);
+        if (lots.Count == 0 && item.StockGrams > 0)
+        {
+            lots.Add(new ConsumableStockLot { ConsumableId = item.Id, OriginalGrams = item.StockGrams, RemainingGrams = item.StockGrams, PricePerKilogram = item.PricePerUnit });
+            db.ConsumableStockLots.Add(lots[0]);
+        }
+        var incomingPrice = request.PricePerKilogram > 0 ? request.PricePerKilogram : item.PricePerUnit;
+        if (item.StockGrams > 0 && incomingPrice > item.PricePerUnit)
+        {
+            var blendGrams = Math.Min(500m, item.StockGrams);
+            var left = blendGrams;
+            for (var index = lots.Count - 1; index >= 0 && left > 0; index--)
+            {
+                var take = Math.Min(left, lots[index].RemainingGrams);
+                lots[index].RemainingGrams -= take;
+                left -= take;
+            }
+            db.ConsumableStockLots.Add(new ConsumableStockLot { ConsumableId = item.Id, OriginalGrams = blendGrams + incomingGrams, RemainingGrams = blendGrams + incomingGrams, PricePerKilogram = decimal.Round((item.PricePerUnit + incomingPrice) / 2m, 4, MidpointRounding.AwayFromZero) });
+            item.PricePerUnit = decimal.Round((item.PricePerUnit + incomingPrice) / 2m, 4, MidpointRounding.AwayFromZero);
+        }
+        else
+        {
+            db.ConsumableStockLots.Add(new ConsumableStockLot { ConsumableId = item.Id, OriginalGrams = incomingGrams, RemainingGrams = incomingGrams, PricePerKilogram = incomingPrice });
+            item.PricePerUnit = incomingPrice;
+        }
+        item.StockGrams = decimal.Round(item.StockGrams + incomingGrams, 4, MidpointRounding.AwayFromZero);
         SyncLegacyQuantity(item);
         await db.SaveChangesAsync(ct);
         return Ok(item);
@@ -103,7 +138,7 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
     }
 
     public sealed record StockRequest(decimal? StockGrams, decimal? LowStockGrams, int? Quantity);
-    public sealed record StockAdditionRequest(decimal Kilograms, decimal Grams);
+    public sealed record StockAdditionRequest(decimal Kilograms, decimal Grams, decimal PricePerKilogram = 0);
 
     private async Task ClearDefault(Consumable input, CancellationToken ct)
     {
@@ -122,6 +157,14 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
         {
             return Conflict(new { message = "Ya existe ese consumible, material y color." });
         }
+    }
+
+    private async Task ReplaceLots(Consumable item, CancellationToken ct)
+    {
+        var current = await db.ConsumableStockLots.Where(x => x.ConsumableId == item.Id).ToListAsync(ct);
+        db.ConsumableStockLots.RemoveRange(current);
+        if (item.StockGrams > 0)
+            db.ConsumableStockLots.Add(new ConsumableStockLot { ConsumableId = item.Id, OriginalGrams = item.StockGrams, RemainingGrams = item.StockGrams, PricePerKilogram = item.PricePerUnit });
     }
 
     private static void NormalizeStock(Consumable item)

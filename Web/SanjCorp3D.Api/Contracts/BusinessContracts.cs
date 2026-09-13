@@ -17,7 +17,7 @@ public sealed record QuoteRequest(
     string Customer, string ProjectName, long PrinterId, decimal PrintHours,
     int Quantity, decimal AdditionalManualCost, decimal ProfitMultiplier,
     string Notes, IReadOnlyList<ConsumableUsageRequest> Consumables,
-    IReadOnlyList<MaterialUsageRequest> Materials);
+    IReadOnlyList<MaterialUsageRequest> Materials, string? CustomerPhone = null);
 
 public sealed record QuoteCalculationDto(
     decimal TotalWeight, decimal MaterialCost, decimal ElectricityCost,

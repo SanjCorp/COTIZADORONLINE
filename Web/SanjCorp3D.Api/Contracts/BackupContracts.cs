@@ -14,7 +14,7 @@ public sealed record BackupQuote(
     int Quantity, decimal AdditionalManualCost, decimal ProfitMultiplier, string Notes, decimal TotalWeight,
     decimal MaterialCost, decimal ElectricityCost, decimal MachineCost, decimal MaintenanceCost, decimal LaborCost,
     decimal AdditionalCost, decimal FunctionalSurcharge, decimal Subtotal, decimal ProfitAmount, decimal TaxAmount,
-    decimal RecommendedPrice, List<BackupQuoteConsumable> Consumables, List<BackupQuoteMaterial> Materials, BackupSale? Sale);
+    decimal RecommendedPrice, List<BackupQuoteConsumable> Consumables, List<BackupQuoteMaterial> Materials, BackupSale? Sale, string? CustomerPhone = null);
 public sealed record BackupQuoteConsumable(long LegacyConsumableId, string Name, string Category, string Material, string Color, decimal Grams, decimal PricePerUnit, decimal Density, decimal LineCost);
 public sealed record BackupQuoteMaterial(long LegacyMaterialId, string Name, decimal Quantity, decimal UnitPrice, decimal LineCost);
 public sealed record BackupSale(DateTime SoldAtUtc, decimal SaleAmount, List<BackupSaleConsumable>? Consumables = null);

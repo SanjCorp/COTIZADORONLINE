@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react'
 import {
   AlertTriangle, BarChart3, Bell, Boxes, Calculator, CircleHelp, FileClock, Gauge, Layers3, LockKeyhole,
-  LogOut, Menu, PackageSearch, Printer, Settings, ShieldCheck, Users, X,
+  LogOut, Menu, MessageCircle, PackageSearch, Printer, Settings, ShieldCheck, Users, X,
 } from 'lucide-react'
 import { api, type Profile } from './api'
 import type { InventoryAlert } from './types'
@@ -14,9 +14,10 @@ import { ReportsPage } from './pages/ReportsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { UsersPage } from './pages/UsersPage'
 import { SupremeAdminPage } from './pages/SupremeAdminPage'
+import { ChatPage } from './pages/ChatPage'
 import { hasAnyRole, roleLabel } from './ui'
 
-type PageKey = 'dashboard' | 'quote' | 'printers' | 'consumables' | 'materials' | 'history' | 'reports' | 'users' | 'settings' | 'help' | 'supreme'
+type PageKey = 'dashboard' | 'quote' | 'printers' | 'consumables' | 'materials' | 'history' | 'reports' | 'users' | 'settings' | 'help' | 'chat' | 'supreme'
 
 export function App() {
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -54,7 +55,7 @@ function Application({ profile, onProfileChange, onLogout }: { profile: Profile;
     { key: 'dashboard', label: 'Resumen', icon: Gauge }, { key: 'quote', label: 'Cotizador', icon: Calculator },
     { key: 'printers', label: 'Impresoras', icon: Printer }, { key: 'consumables', label: 'Filamentos y resinas', icon: PackageSearch },
     { key: 'materials', label: 'Materiales', icon: Layers3 }, { key: 'history', label: 'Historial', icon: FileClock },
-    { key: 'reports', label: 'Reportes y ventas', icon: BarChart3 }, ...(isSuperAdmin ? [{ key: 'users' as PageKey, label: 'Usuarios', icon: Users, admin: true }] : []),
+    { key: 'reports', label: 'Reportes y ventas', icon: BarChart3 }, { key: 'chat', label: 'Chat', icon: MessageCircle }, ...(isSuperAdmin ? [{ key: 'users' as PageKey, label: 'Usuarios', icon: Users, admin: true }] : []),
     { key: 'settings', label: 'Configuración', icon: Settings }, { key: 'help', label: 'Ayuda', icon: CircleHelp },
     ...(isSuperAdmin ? [{ key: 'supreme' as PageKey, label: 'Administrar espacios', icon: ShieldCheck, admin: true }] : []),
   ]
@@ -62,6 +63,7 @@ function Application({ profile, onProfileChange, onLogout }: { profile: Profile;
   let content
   switch (page) {
     case 'supreme': content = isSuperAdmin ? <SupremeAdminPage profile={profile} mode={supremeMode} /> : <DashboardPage goTo={goTo} />; break
+    case 'chat': content = <ChatPage profile={profile} />; break
     case 'quote': content = <QuotePage canWrite={canSale} />; break
     case 'printers': content = <PrintersPage canManage={isSuperAdmin} canFavorite={!isSuperAdmin} />; break
     case 'consumables': content = <ConsumablesPage canEdit={canCatalog} />; break
@@ -73,7 +75,6 @@ function Application({ profile, onProfileChange, onLogout }: { profile: Profile;
     case 'help': content = <HelpPage />; break
     default: content = <DashboardPage goTo={goTo} />
   }
-  async function switchWorkspace(id: string) { sessionStorage.setItem('sanjcorp.tenant', id); try { onProfileChange(await api.me()); goTo('dashboard') } catch { sessionStorage.removeItem('sanjcorp.tenant') } }
   const activeWorkspace = profile.workspaces?.find(x => x.id === (profile.tenantId ?? sessionStorage.getItem('sanjcorp.tenant')))
   return <div className="app-shell">
     {mobileOpen && <button className="sidebar-scrim" aria-label="Cerrar menú" onClick={() => setMobileOpen(false)} />}

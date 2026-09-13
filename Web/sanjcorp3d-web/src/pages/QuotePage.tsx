@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Calculator, CheckCircle2, Plus, RotateCcw, Save, ShoppingBag, Trash2 } from 'lucide-react'
+import { Calculator, CheckCircle2, Download, Plus, RotateCcw, Save, ShoppingBag, Trash2 } from 'lucide-react'
 import { api } from '../api'
 import type { BusinessSettings, Consumable, ConsumableUsage, ExtraMaterial, MaterialUsage, Printer, QuoteCalculation, QuoteRequest, QuoteSummary } from '../types'
 import { Empty, ErrorMessage, Loading, PageHeader, SuccessMessage, money, number, weight } from '../ui'
 
-type BaseForm = { customer: string; projectName: string; printerId: number; hours: number; minutes: number; quantity: number; additionalManualCost: number; profitMultiplier: number; notes: string }
-const emptyForm: BaseForm = { customer: '', projectName: '', printerId: 0, hours: 0, minutes: 0, quantity: 1, additionalManualCost: 0, profitMultiplier: 1.3, notes: '' }
+type BaseForm = { customer: string; customerPhone: string; projectName: string; printerId: number; hours: number; minutes: number; quantity: number; additionalManualCost: number; profitMultiplier: number; notes: string }
+const emptyForm: BaseForm = { customer: '', customerPhone: '', projectName: '', printerId: 0, hours: 0, minutes: 0, quantity: 1, additionalManualCost: 0, profitMultiplier: 3, notes: '' }
 
 export function QuotePage({ canWrite }: { canWrite: boolean }) {
   const [printers, setPrinters] = useState<Printer[]>([])
@@ -58,7 +58,7 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
   }
 
   function request(): QuoteRequest {
-    return { customer: form.customer, projectName: form.projectName, printerId: form.printerId, printHours: form.hours + form.minutes / 60, quantity: form.quantity, additionalManualCost: form.additionalManualCost, profitMultiplier: form.profitMultiplier, notes: form.notes, consumables: consumableLines, materials: materialLines }
+    return { customer: form.customer, customerPhone: form.customerPhone, projectName: form.projectName, printerId: form.printerId, printHours: form.hours + form.minutes / 60, quantity: form.quantity, additionalManualCost: form.additionalManualCost, profitMultiplier: form.profitMultiplier, notes: form.notes, consumables: consumableLines, materials: materialLines }
   }
 
   async function calculate() {
@@ -69,6 +69,7 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
   }
 
   async function save() {
+    if (!form.customerPhone.trim()) { setError('Escribe el celular del cliente antes de guardar.'); return }
     setBusy(true); setError(''); setSuccess('')
     try {
       const payload = request()
@@ -87,7 +88,7 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
   }
 
   function clear() {
-    setForm({ ...emptyForm, printerId: printers[0]?.id ?? 0, profitMultiplier: settings?.defaultProfitMultiplier ?? 1.3 })
+    setForm({ ...emptyForm, printerId: printers[0]?.id ?? 0, profitMultiplier: settings?.defaultProfitMultiplier ?? 3 })
     setConsumableLines([]); setMaterialLines([]); setCalculation(undefined); setSaved(undefined); setSold(false); setError(''); setSuccess('')
   }
 
@@ -105,6 +106,7 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
           <div className="section-title"><div><span className="step">01</span><h2>Proyecto e impresión</h2></div></div>
           <div className="form-grid two">
             <label>Cliente<input value={form.customer} onChange={e => update('customer', e.target.value)} placeholder="Nombre del cliente" /></label>
+            <label>Celular del cliente <small>(solo al guardar)</small><input value={form.customerPhone} onChange={e => update('customerPhone', e.target.value)} placeholder="70000000" inputMode="tel" /></label>
             <label>Pieza o proyecto<input value={form.projectName} onChange={e => update('projectName', e.target.value)} placeholder="Ej. Soporte personalizado" /></label>
             <label className="span-2">Impresora<select value={form.printerId} onChange={e => update('printerId', Number(e.target.value))}>{printers.map(x => <option key={x.id} value={x.id}>{x.name} · {x.buildX}×{x.buildY}×{x.buildZ} mm</option>)}</select></label>
             <label>Horas<input type="number" min="0" step="1" value={form.hours} onChange={e => update('hours', Number(e.target.value))} /></label>
@@ -156,7 +158,7 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
             <div><dt>Impuesto</dt><dd>{money(calculation.taxAmount, settings?.currencySymbol)}</dd></div>
           </dl>
         </>}
-        {saved && <div className="saved-ticket"><CheckCircle2 size={19} /><div><small>Código guardado</small><strong>{saved.orderCode}</strong></div><StatusSale sold={sold} /></div>}
+        {saved && <div className="saved-ticket"><CheckCircle2 size={19} /><div><small>Código guardado</small><strong>{saved.orderCode}</strong></div><StatusSale sold={sold} /><button className="icon ghost" title="Descargar comprobante PDF" onClick={() => api.downloadVoucher(saved.id).catch(reason => setError((reason as Error).message))}><Download size={16} /></button></div>}
         <div className="summary-actions">
           <button className="secondary" disabled={busy || printers.length === 0 || consumables.length === 0} onClick={calculate}><Calculator size={17} />Calcular precio</button>
           <button disabled={busy || printers.length === 0 || consumables.length === 0} onClick={save}><Save size={17} />Guardar cotización</button>

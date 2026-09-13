@@ -1,6 +1,6 @@
 import type {
   BusinessSettings, Consumable, Dashboard, ExtraMaterial, Printer, Profile, QuoteCalculation,
-  QuoteDetail, QuoteRequest, QuoteSummary, Report, TwoFactorSetup, UserAccount, InventoryAlert, Tenant,
+  QuoteDetail, QuoteRequest, QuoteSummary, Report, TwoFactorSetup, UserAccount, InventoryAlert, Tenant, ChatMessage,
 } from './types'
 
 export type { Dashboard, Profile } from './types'
@@ -65,7 +65,7 @@ export const api = {
   consumables: (includeArchived = false) => request<Consumable[]>(`/api/consumables${query({ includeArchived })}`),
   saveConsumable: (item: Consumable) => item.id ? request<Consumable>(`/api/consumables/${item.id}`, { method: 'PUT', body: JSON.stringify(item) }) : request<Consumable>('/api/consumables', { method: 'POST', body: JSON.stringify(item) }),
   updateStock: (id: number, stockGrams: number, lowStockGrams: number) => request<Consumable>(`/api/consumables/${id}/stock`, { method: 'PATCH', body: JSON.stringify({ stockGrams, lowStockGrams }) }),
-  addStock: (id: number, kilograms: number, grams: number) => request<Consumable>(`/api/consumables/${id}/stock/add`, { method: 'POST', body: JSON.stringify({ kilograms, grams }) }),
+  addStock: (id: number, kilograms: number, grams: number, pricePerKilogram: number) => request<Consumable>(`/api/consumables/${id}/stock/add`, { method: 'POST', body: JSON.stringify({ kilograms, grams, pricePerKilogram }) }),
   archiveConsumable: (id: number) => request<void>(`/api/consumables/${id}`, { method: 'DELETE' }),
   alerts: () => request<InventoryAlert[]>('/api/alerts'),
   materials: (includeArchived = false) => request<ExtraMaterial[]>(`/api/materials${query({ includeArchived })}`),
@@ -75,6 +75,7 @@ export const api = {
   saveSettings: (settings: BusinessSettings) => request<BusinessSettings>('/api/settings', { method: 'PUT', body: JSON.stringify(settings) }),
   calculateQuote: (quote: QuoteRequest) => request<QuoteCalculation>('/api/quotes/calculate', { method: 'POST', body: JSON.stringify(quote) }),
   createQuote: (quote: QuoteRequest) => request<QuoteSummary>('/api/quotes', { method: 'POST', body: JSON.stringify(quote) }),
+  downloadVoucher: (id: number) => download(`/api/quotes/${id}/voucher`, `cotizacion-${id}.pdf`),
   quotes: (filters: { search?: string; from?: string; to?: string } = {}) => request<QuoteSummary[]>(`/api/quotes${query(filters)}`),
   quote: (id: number) => request<QuoteDetail>(`/api/quotes/${id}`),
   confirmSale: (id: number) => request<{ id: number; quoteId: number; soldAtUtc: string; saleAmount: number }>(`/api/quotes/${id}/sale`, { method: 'POST' }),
@@ -95,4 +96,6 @@ export const api = {
   updateTenant: (id: string, item: { name: string; logoUrl?: string; active: boolean }) => request<Tenant>(`/api/tenants/${id}`, { method: 'PUT', body: JSON.stringify(item) }),
   deleteMakerTenant: (id: string) => request<void>(`/api/tenants/${id}`, { method: 'DELETE' }),
   createMakerUser: (tenantId: string, item: { username: string; displayName: string; email?: string; password: string }) => request<UserAccount>(`/api/tenants/${tenantId}/users`, { method: 'POST', body: JSON.stringify(item) }),
+  chat: (after?: number) => request<ChatMessage[]>(`/api/chat${query({ after })}`),
+  sendChat: (body: string, photoUrl?: string) => request<ChatMessage>('/api/chat', { method: 'POST', body: JSON.stringify({ body, photoUrl }) }),
 }

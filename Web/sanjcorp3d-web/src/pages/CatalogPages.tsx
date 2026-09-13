@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, Boxes, Edit3, Plus, Printer as PrinterIcon, RefreshCw, Star } from 'lucide-react'
+import { Archive, Boxes, Edit3, Plus, Printer as PrinterIcon, RefreshCw, Star, Upload } from 'lucide-react'
 import { api } from '../api'
 import type { Consumable, ExtraMaterial, Printer } from '../types'
 import { Empty, ErrorMessage, Loading, PageHeader, Status, SuccessMessage, money, number, weight } from '../ui'
@@ -55,6 +55,10 @@ export function ConsumablesPage({ canEdit, currency = 'Bs' }: { canEdit: boolean
   const [draft, setDraft] = useState<Consumable | null>(null)
   const [stockKg, setStockKg] = useState(0)
   const [stockRemainder, setStockRemainder] = useState(0)
+  const [entry, setEntry] = useState<Consumable | null>(null)
+  const [entryKg, setEntryKg] = useState(0)
+  const [entryGrams, setEntryGrams] = useState(0)
+  const [entryPrice, setEntryPrice] = useState(0)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(true)
@@ -84,6 +88,9 @@ export function ConsumablesPage({ canEdit, currency = 'Bs' }: { canEdit: boolean
     setStockRemainder(Number((total % 1000).toFixed(2)))
     setError('')
   }
+
+  function receive(item: Consumable) { setEntry(item); setEntryKg(0); setEntryGrams(0); setEntryPrice(item.pricePerUnit); setError('') }
+  async function saveEntry(event: FormEvent) { event.preventDefault(); if (!entry || entryPrice < 0 || entryKg * 1000 + entryGrams <= 0) { setError('Indica cantidad y precio válidos para el ingreso.'); return } try { await api.addStock(entry.id, entryKg, entryGrams, entryPrice); setSuccess('Ingreso de lote registrado.'); setEntry(null); load(); window.dispatchEvent(new Event('inventory-changed')) } catch (reason) { setError((reason as Error).message) } }
 
   function updateWeight(kilos: number, remainder: number) {
     if (!draft) return
@@ -128,18 +135,19 @@ export function ConsumablesPage({ canEdit, currency = 'Bs' }: { canEdit: boolean
           const total = currentGrams(item)
           const threshold = Number(item.lowStockGrams ?? 1000)
           const low = total <= threshold
-          return <tr key={item.id} className={!item.active ? 'archived-row' : ''}><td><strong>{item.name}</strong>{item.isDefault && <span className="preferred inline">PREDET.</span>}</td><td>{item.material} · {item.color}<small className="cell-note">{item.category} · densidad {number(item.density)}</small></td><td>{money(item.pricePerUnit, currency)}</td><td><strong className={low ? 'low-stock' : ''}>{weight(total)}</strong><small className="cell-note">Alerta: {weight(threshold)}</small></td><td><Status active={item.active && !low} trueLabel="DISPONIBLE" falseLabel={!item.active ? 'ARCHIVADO' : total <= 0 ? 'AGOTADO' : 'STOCK BAJO'} /></td>{canEdit && <td><div className="row-actions"><button className="icon ghost" title="Editar" onClick={() => edit(item)}><Edit3 size={15} /></button>{item.active && <button className="icon ghost danger-text" title="Archivar" onClick={() => archive(item)}><Archive size={15} /></button>}</div></td>}</tr>
+          return <tr key={item.id} className={!item.active ? 'archived-row' : ''}><td><strong>{item.name}</strong>{item.isDefault && <span className="preferred inline">PREDET.</span>}</td><td>{item.material} · {item.color}<small className="cell-note">{item.category} · densidad {number(item.density)}</small></td><td>{money(item.pricePerUnit, currency)} / kg</td><td><strong className={low ? 'low-stock' : ''}>{weight(total)}</strong><small className="cell-note">Alerta: {weight(threshold)}</small></td><td><Status active={item.active && !low} trueLabel="DISPONIBLE" falseLabel={!item.active ? 'ARCHIVADO' : total <= 0 ? 'AGOTADO' : 'STOCK BAJO'} /></td>{canEdit && <td><div className="row-actions"><button className="icon ghost" title="Registrar ingreso" onClick={() => receive(item)}><Upload size={15} /></button><button className="icon ghost" title="Editar" onClick={() => edit(item)}><Edit3 size={15} /></button>{item.active && <button className="icon ghost danger-text" title="Archivar" onClick={() => archive(item)}><Archive size={15} /></button>}</div></td>}</tr>
         })}</tbody></table></div>}
       </section>
       {draft && <form className="panel editor" onSubmit={save}>
         <div className="section-title"><div><p className="eyebrow">{draft.id ? 'EDITAR' : 'NUEVO'}</p><h2>Consumible</h2></div><button type="button" className="icon ghost" onClick={() => setDraft(null)}>×</button></div>
         <label>Nombre<input required value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} placeholder="Ej. eSUN" /></label>
-        <div className="form-grid two"><label>Categoría<select value={draft.category} onChange={e => setDraft({ ...draft, category: e.target.value })}><option>Filamento</option><option>Resina</option></select></label><label>Material / tipo<input required value={draft.material} onChange={e => setDraft({ ...draft, material: e.target.value })} placeholder="PLA, PETG, estándar…" /></label><label>Color<input required value={draft.color} onChange={e => setDraft({ ...draft, color: e.target.value })} /></label><label>Precio por {draft.category === 'Resina' ? 'litro' : 'kg'}<input type="number" min="0" step="0.01" value={draft.pricePerUnit} onChange={e => setDraft({ ...draft, pricePerUnit: Number(e.target.value) })} /></label><label>Densidad<input type="number" min="0.01" step="0.01" value={draft.density} onChange={e => setDraft({ ...draft, density: Number(e.target.value) })} /></label></div>
+        <div className="form-grid two"><label>Categoría<select value={draft.category} onChange={e => setDraft({ ...draft, category: e.target.value })}><option>Filamento</option><option>Resina</option></select></label><label>Material / tipo<input required value={draft.material} onChange={e => setDraft({ ...draft, material: e.target.value })} placeholder="PLA, PETG, estándar…" /></label><label>Color<input required value={draft.color} onChange={e => setDraft({ ...draft, color: e.target.value })} /></label><label>Precio por kg<input type="number" min="0" step="0.01" value={draft.pricePerUnit} onChange={e => setDraft({ ...draft, pricePerUnit: Number(e.target.value) })} /></label><label>Densidad<input type="number" min="0.01" step="0.01" value={draft.density} onChange={e => setDraft({ ...draft, density: Number(e.target.value) })} /></label></div>
         <p className="field-help">La existencia se guarda como peso total. Puedes introducir kilos completos y gramos adicionales.</p>
         <div className="form-grid two"><label>Kilos<input type="number" min="0" step="1" value={stockKg} onChange={e => updateWeight(Number(e.target.value), stockRemainder)} /></label><label>Gramos adicionales<input type="number" min="0" max="999.99" step="0.01" value={stockRemainder} onChange={e => updateWeight(stockKg, Number(e.target.value))} /><span className="field-help">Usa un valor entre 0 y 999,99 g.</span></label><label>Alerta cuando queden menos de (g)<input type="number" min="0" step="0.01" value={Number.isFinite(draft.lowStockGrams) ? draft.lowStockGrams : 0} onChange={e => { const value = Number(e.target.value); setDraft({ ...draft, lowStockGrams: Number.isFinite(value) ? Math.max(0, value) : 0 }) }} /><span className="field-help">Ejemplo: 100 g avisa cuando queden 100 g o menos.</span></label></div>
         <label className="check"><input type="checkbox" checked={draft.isDefault} onChange={e => setDraft({ ...draft, isDefault: e.target.checked })} />Consumible predeterminado</label>{draft.id > 0 && <label className="check"><input type="checkbox" checked={draft.active} onChange={e => setDraft({ ...draft, active: e.target.checked })} />Activo</label>}
         <div className="editor-actions"><button type="button" className="ghost" onClick={() => setDraft(null)}>Cancelar</button><button>Guardar</button></div>
       </form>}
+      {entry && <form className="panel editor" onSubmit={saveEntry}><div className="section-title"><div><p className="eyebrow">NUEVO LOTE</p><h2>Ingreso de {entry.name}</h2></div><button type="button" className="icon ghost" onClick={() => setEntry(null)}>×</button></div><p className="field-help">El lote queda separado para calcular automáticamente el precio por antigüedad.</p><div className="form-grid two"><label>Kilos<input type="number" min="0" step="0.01" value={entryKg} onChange={e => setEntryKg(Math.max(0, Number(e.target.value)))} /></label><label>Gramos adicionales<input type="number" min="0" max="999.99" step="0.01" value={entryGrams} onChange={e => setEntryGrams(Math.max(0, Number(e.target.value)))} /></label></div><label>Precio por kg<input required type="number" min="0" step="0.01" value={entryPrice} onChange={e => setEntryPrice(Math.max(0, Number(e.target.value)))} /></label><div className="editor-actions"><button type="button" className="ghost" onClick={() => setEntry(null)}>Cancelar</button><button><Upload size={16} />Registrar ingreso</button></div></form>}
     </div>
   </>
 }

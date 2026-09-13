@@ -43,7 +43,7 @@ export type ConsumableUsage = { consumableId: number; grams: number }
 export type MaterialUsage = { materialId: number; quantity: number }
 
 export type QuoteRequest = {
-  customer: string; projectName: string; printerId: number; printHours: number; quantity: number
+  customer: string; customerPhone?: string; projectName: string; printerId: number; printHours: number; quantity: number
   additionalManualCost: number; profitMultiplier: number; notes: string
   consumables: ConsumableUsage[]; materials: MaterialUsage[]
 }
@@ -59,7 +59,7 @@ export type QuoteSummary = {
 }
 
 export type QuoteDetail = {
-  id: number; orderCode: string; createdAtUtc: string; customer: string; projectName: string; printerName: string
+  id: number; orderCode: string; createdAtUtc: string; customer: string; customerPhone?: string; projectName: string; printerName: string
   printHours: number; quantity: number; additionalManualCost: number; profitMultiplier: number; notes: string
   totalWeight: number; materialCost: number; electricityCost: number; machineCost: number; maintenanceCost: number
   laborCost: number; additionalCost: number; functionalSurcharge: number; subtotal: number; profitAmount: number
@@ -85,5 +85,6 @@ export type UserAccount = {
   lastLoginAtUtc?: string; twoFactorEnabled: boolean; role: string
 }
 export type Tenant = { id: string; name: string; slug: string; kind: string; logoUrl?: string; active: boolean; userCount: number }
+export type ChatMessage = { id: number; tenantId: string; senderUserId: string; senderName: string; body: string; photoUrl?: string; createdAtUtc: string }
 
 export type TwoFactorSetup = { sharedKey: string; authenticatorUri: string }

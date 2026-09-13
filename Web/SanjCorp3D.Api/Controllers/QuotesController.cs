@@ -14,7 +14,7 @@ using SanjCorp3D.Api.Services;
 namespace SanjCorp3D.Api.Controllers;
 
 [ApiController,Authorize,Route("api/quotes")]
-public sealed class QuotesController(AppDbContext db,BusinessSettingsService settings):ControllerBase
+public sealed class QuotesController(AppDbContext db,BusinessSettingsService settings,TenantContext tenantContext):ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult>List([FromQuery]string search="",[FromQuery]DateTime? from=null,[FromQuery]DateTime? to=null,CancellationToken ct=default)
@@ -32,7 +32,7 @@ public sealed class QuotesController(AppDbContext db,BusinessSettingsService set
     {
         var q=await db.Quotes.AsNoTracking().AsSplitQuery().Where(x=>x.Id==id).Select(x=>new
         {
-            x.Id,x.OrderCode,x.CreatedAtUtc,x.Customer,x.ProjectName,x.PrinterName,x.PrintHours,x.Quantity,
+            x.Id,x.OrderCode,x.CreatedAtUtc,x.Customer,x.CustomerPhone,x.ProjectName,x.PrinterName,x.PrintHours,x.Quantity,
             x.AdditionalManualCost,x.ProfitMultiplier,x.Notes,x.TotalWeight,x.MaterialCost,x.ElectricityCost,
             x.MachineCost,x.MaintenanceCost,x.LaborCost,x.AdditionalCost,x.FunctionalSurcharge,x.Subtotal,
             x.ProfitAmount,x.TaxAmount,x.RecommendedPrice,
@@ -52,6 +52,7 @@ public sealed class QuotesController(AppDbContext db,BusinessSettingsService set
     [Authorize(Roles=$"{AppRoles.Administrator},{AppRoles.Sales},{AppRoles.Maker},{AppRoles.SuperAdmin}"),HttpPost]
     public async Task<IActionResult>Create(QuoteRequest request,CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(request.CustomerPhone)) return BadRequest(new { message = "El celular del cliente es obligatorio para guardar la cotización." });
         var resolved=await Resolve(request,ct);var calculation=QuoteCalculator.Calculate(request,resolved.Printer,resolved.Consumables,resolved.Materials,await settings.GetAsync(ct));
         var strategy=db.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync<IActionResult>(async () =>
@@ -59,7 +60,7 @@ public sealed class QuotesController(AppDbContext db,BusinessSettingsService set
             db.ChangeTracker.Clear();
             await using var transaction=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
             long next=(await db.Quotes.MaxAsync(x=>(long?)x.Id,ct)??0)+1;var created=DateTime.UtcNow;
-            var quote=new Quote{OrderCode=$"{Initial(request.Customer)}{Initial(resolved.Printer.Name)}{created:yyyyMMdd}{next:0000}",CreatedAtUtc=created,Customer=request.Customer.Trim(),ProjectName=request.ProjectName.Trim(),PrinterName=resolved.Printer.Name,PrintHours=request.PrintHours,Quantity=request.Quantity,AdditionalManualCost=request.AdditionalManualCost,ProfitMultiplier=request.ProfitMultiplier,Notes=request.Notes?.Trim()??string.Empty,TotalWeight=calculation.TotalWeight,MaterialCost=calculation.MaterialCost,ElectricityCost=calculation.ElectricityCost,MachineCost=0,MaintenanceCost=calculation.MaintenanceCost,LaborCost=0,AdditionalCost=calculation.AdditionalCost,FunctionalSurcharge=0,Subtotal=calculation.Subtotal,ProfitAmount=calculation.ProfitAmount,TaxAmount=calculation.TaxAmount,RecommendedPrice=calculation.RecommendedPrice};
+            var quote=new Quote{OrderCode=$"{Initial(request.Customer)}{Initial(resolved.Printer.Name)}{created:yyyyMMdd}{next:0000}",CreatedAtUtc=created,Customer=request.Customer.Trim(),CustomerPhone=request.CustomerPhone.Trim(),ProjectName=request.ProjectName.Trim(),PrinterName=resolved.Printer.Name,PrintHours=request.PrintHours,Quantity=request.Quantity,AdditionalManualCost=request.AdditionalManualCost,ProfitMultiplier=request.ProfitMultiplier,Notes=request.Notes?.Trim()??string.Empty,TotalWeight=calculation.TotalWeight,MaterialCost=calculation.MaterialCost,ElectricityCost=calculation.ElectricityCost,MachineCost=0,MaintenanceCost=calculation.MaintenanceCost,LaborCost=0,AdditionalCost=calculation.AdditionalCost,FunctionalSurcharge=0,Subtotal=calculation.Subtotal,ProfitAmount=calculation.ProfitAmount,TaxAmount=calculation.TaxAmount,RecommendedPrice=calculation.RecommendedPrice};
             foreach(var line in resolved.Consumables)quote.Consumables.Add(new QuoteConsumable{LegacyConsumableId=line.Item.Id,Name=line.Item.Name,Category=line.Item.Category,Material=line.Item.Material,Color=line.Item.Color,Grams=line.Grams,PricePerUnit=line.Item.PricePerUnit,Density=line.Item.Density,LineCost=decimal.Round(line.UnitCost*request.Quantity,4,MidpointRounding.AwayFromZero)});
             foreach(var line in resolved.Materials)quote.Materials.Add(new QuoteMaterial{LegacyMaterialId=line.Item.Id,Name=line.Item.Name,Quantity=line.Quantity,UnitPrice=line.Item.UnitPrice,LineCost=decimal.Round(line.Cost,4,MidpointRounding.AwayFromZero)});
             db.Quotes.Add(quote);await db.SaveChangesAsync(ct);await transaction.CommitAsync(ct);
@@ -96,6 +97,7 @@ public sealed class QuotesController(AppDbContext db,BusinessSettingsService set
 
             var ids = usage.Select(x => x.Id).ToArray();
             var inventory = await db.Consumables.Where(x => ids.Contains(x.Id)).ToDictionaryAsync(x => x.Id, ct);
+            var lotsByItem = await db.ConsumableStockLots.Where(x => ids.Contains(x.ConsumableId)).OrderBy(x => x.ReceivedAtUtc).ThenBy(x => x.Id).ToListAsync(ct);
             foreach (var required in usage)
             {
                 if (!inventory.TryGetValue(required.Id, out var item))
@@ -112,9 +114,19 @@ public sealed class QuotesController(AppDbContext db,BusinessSettingsService set
             foreach (var required in usage)
             {
                 var item = inventory[required.Id];
+                var lots = lotsByItem.Where(x => x.ConsumableId == item.Id).OrderBy(x => x.ReceivedAtUtc).ThenBy(x => x.Id).ToList();
+                if (lots.Count == 0 && item.StockGrams > 0) lots.Add(new ConsumableStockLot { ConsumableId = item.Id, RemainingGrams = item.StockGrams, OriginalGrams = item.StockGrams, PricePerKilogram = item.PricePerUnit });
+                var left = required.Grams;
+                foreach (var lot in lots)
+                {
+                    if (left <= 0) break;
+                    var take = Math.Min(left, lot.RemainingGrams);
+                    lot.RemainingGrams -= take;
+                    left -= take;
+                    sale.Consumables.Add(new SaleConsumable { ConsumableId = item.Id, Grams = take, PricePerKilogram = lot.PricePerKilogram });
+                }
                 item.StockGrams = decimal.Round(item.StockGrams - required.Grams, 4, MidpointRounding.AwayFromZero);
                 SyncLegacyQuantity(item);
-                sale.Consumables.Add(new SaleConsumable { ConsumableId = item.Id, Grams = required.Grams });
             }
             quote.Sale = sale;
             await db.SaveChangesAsync(ct);
@@ -149,6 +161,7 @@ public sealed class QuotesController(AppDbContext db,BusinessSettingsService set
                 {
                     if (!inventory.TryGetValue(line.ConsumableId, out var item)) continue;
                     item.StockGrams = decimal.Round(item.StockGrams + line.Grams, 4, MidpointRounding.AwayFromZero);
+                    db.ConsumableStockLots.Add(new ConsumableStockLot { ConsumableId = item.Id, OriginalGrams = line.Grams, RemainingGrams = line.Grams, PricePerKilogram = line.PricePerKilogram > 0 ? line.PricePerKilogram : item.PricePerUnit });
                     SyncLegacyQuantity(item);
                 }
             }
@@ -166,12 +179,33 @@ public sealed class QuotesController(AppDbContext db,BusinessSettingsService set
         var rows=await q.OrderByDescending(x=>x.CreatedAtUtc).ToListAsync(ct);var csv=new StringBuilder("Codigo,Estado,Fecha,Cliente,Proyecto,Impresora,Peso,Costo,Precio\r\n");foreach(var x in rows)csv.AppendLine(string.Join(',',Csv(x.OrderCode),Csv(x.Sale is null?"COTIZACION":"VENDIDA"),Csv(x.CreatedAtUtc.ToString("O")),Csv(x.Customer),Csv(x.ProjectName),Csv(x.PrinterName),x.TotalWeight.ToString(CultureInfo.InvariantCulture),x.Subtotal.ToString(CultureInfo.InvariantCulture),x.RecommendedPrice.ToString(CultureInfo.InvariantCulture)));return File(Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(csv.ToString())).ToArray(),"text/csv",$"cotizaciones-{DateTime.UtcNow:yyyyMMdd}.csv");
     }
 
+    [HttpGet("{id:long}/voucher")]
+    public async Task<IActionResult>Voucher(long id,CancellationToken ct)
+    {
+        var quote = await db.Quotes.AsNoTracking().Include(x => x.Sale).FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (quote is null) return NotFound();
+        var tenant = await db.Tenants.AsNoTracking().FirstOrDefaultAsync(x => x.Id == quote.TenantId, ct);
+        var name = tenant?.Name ?? "SanjCorp 3D";
+        var text = new[] { name, "COMPROBANTE DE COTIZACION", $"Codigo: {quote.OrderCode}", $"Cliente: {quote.Customer}", $"Celular: {quote.CustomerPhone}", $"Proyecto: {quote.ProjectName}", $"Precio final: Bs {quote.RecommendedPrice:0.00}", $"Fecha: {quote.CreatedAtUtc:yyyy-MM-dd HH:mm}", quote.Sale is null ? "Estado: COTIZACION" : "Estado: VENTA CONFIRMADA" };
+        return File(PdfVoucher(text), "application/pdf", $"cotizacion-{quote.OrderCode}.pdf");
+    }
+
     private async Task<(Printer Printer,List<QuoteCalculator.ConsumableLine> Consumables,List<QuoteCalculator.MaterialLine> Materials)>Resolve(QuoteRequest request,CancellationToken ct)
     {
         var printer=await db.Printers.FirstOrDefaultAsync(x=>x.Id==request.PrinterId&&x.Active&&x.IsDefault,ct)??throw new ArgumentException("Selecciona una impresora favorita activa antes de cotizar.");
-        var consumableIds=request.Consumables.Select(x=>x.ConsumableId).Distinct().ToArray();var available=await db.Consumables.Where(x=>consumableIds.Contains(x.Id)&&x.Active).ToDictionaryAsync(x=>x.Id,ct);var consumables=new List<QuoteCalculator.ConsumableLine>();foreach(var input in request.Consumables){if(!available.TryGetValue(input.ConsumableId,out var item))throw new ArgumentException("Uno de los consumibles no existe o está archivado.");if(item.StockGrams<=0)throw new ArgumentException($"No hay existencia de {item.Name} · {item.Material} · {item.Color}.");consumables.Add(new(item,input.Grams));}
+        var consumableIds=request.Consumables.Select(x=>x.ConsumableId).Distinct().ToArray();var available=await db.Consumables.Where(x=>consumableIds.Contains(x.Id)&&x.Active).ToDictionaryAsync(x=>x.Id,ct);var lots=await db.ConsumableStockLots.Where(x=>consumableIds.Contains(x.ConsumableId)).OrderBy(x=>x.ReceivedAtUtc).ThenBy(x=>x.Id).ToListAsync(ct);var remainingLots=available.ToDictionary(x=>x.Key,lotsForItem=>lots.Where(x=>x.ConsumableId==lotsForItem.Key).Select(x=>new StockPriceSegment(x.RemainingGrams,x.PricePerKilogram)).ToList());foreach(var item in available.Values)if(remainingLots[item.Id].Count==0&&item.StockGrams>0)remainingLots[item.Id].Add(new StockPriceSegment(item.StockGrams,item.PricePerUnit));var consumables=new List<QuoteCalculator.ConsumableLine>();foreach(var input in request.Consumables){if(!available.TryGetValue(input.ConsumableId,out var item))throw new ArgumentException("Uno de los consumibles no existe o está archivado.");if(item.StockGrams<=0)throw new ArgumentException($"No hay existencia de {item.Name} · {item.Material} · {item.Color}.");var itemLots=remainingLots[item.Id];var required=input.Grams*request.Quantity;if(itemLots.Sum(x=>x.Grams)+0.0001m<required)throw new ArgumentException($"Stock insuficiente para {item.Name} · {item.Material} · {item.Color}.");var cost=CostFor(itemLots,required);RemoveFrom(itemLots,required);consumables.Add(new(item,input.Grams,cost/request.Quantity));}
         var materialIds=request.Materials.Select(x=>x.MaterialId).Distinct().ToArray();var materialCatalog=await db.Materials.Where(x=>materialIds.Contains(x.Id)&&x.Active).ToDictionaryAsync(x=>x.Id,ct);var materials=new List<QuoteCalculator.MaterialLine>();foreach(var input in request.Materials){if(!materialCatalog.TryGetValue(input.MaterialId,out var item))throw new ArgumentException("Uno de los materiales no existe o está archivado.");materials.Add(new(item,input.Quantity));}
         return(printer,consumables,materials);
+    }
+    private sealed record StockPriceSegment(decimal Grams, decimal Price);
+    private static decimal CostFor(List<StockPriceSegment> lots, decimal grams){var left=grams;var cost=0m;foreach(var lot in lots){if(left<=0)break;var take=Math.Min(left,lot.Grams);cost+=take/1000m*lot.Price;left-=take;}return cost;}
+    private static void RemoveFrom(List<StockPriceSegment> lots, decimal grams){var left=grams;for(var i=0;i<lots.Count&&left>0;){var take=Math.Min(left,lots[i].Grams);left-=take;if(take>=lots[i].Grams)lots.RemoveAt(i);else{lots[i]=lots[i] with { Grams=lots[i].Grams-take };i++;}}}
+    private static byte[] PdfVoucher(string[] lines)
+    {
+        static string Safe(string value) => new string(value.Normalize(System.Text.NormalizationForm.FormD).Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark && c <= 127).ToArray()).Replace("\\", "\\\\").Replace("(", "\\(").Replace(")", "\\)");
+        var content = new StringBuilder("BT /F1 16 Tf 50 780 Td ");
+        for (var i = 0; i < lines.Length; i++) { if (i > 0) content.Append("0 -28 Td "); content.Append('(').Append(Safe(lines[i])).Append(") Tj "); }
+        content.Append("ET"); var stream = content.ToString(); var objects = new[] { "<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R] /Count 1 >>", "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>", "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>", $"<< /Length {stream.Length} >>\nstream\n{stream}\nendstream" }; var pdf = new StringBuilder("%PDF-1.4\n"); var offsets = new List<int> { 0 }; foreach (var (obj,index) in objects.Select((x,i)=>(x,i))) { offsets.Add(pdf.Length); pdf.Append($"{index + 1} 0 obj\n{obj}\nendobj\n"); } var xref = pdf.Length; pdf.Append($"xref\n0 {objects.Length + 1}\n0000000000 65535 f \n"); foreach (var offset in offsets.Skip(1)) pdf.Append($"{offset:0000000000} 00000 n \n"); pdf.Append($"trailer\n<< /Size {objects.Length + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF"); return Encoding.ASCII.GetBytes(pdf.ToString());
     }
     private static void SyncLegacyQuantity(Consumable item)
     {

@@ -11,7 +11,7 @@ public sealed class BusinessSettingsService(AppDbContext db)
     // Keep the spreadsheet's neutral defaults. Maintenance and rounding are
     // optional inputs, so they must not change a quote unless the user sets
     // them explicitly in Configuración.
-    public static BusinessSettingsDto Defaults => new("SANJ CORP 3D", "Bolivianos", "Bs", 1.10m, 0m, 1.30m, 0m, 0m, 2);
+    public static BusinessSettingsDto Defaults => new("SANJ CORP 3D", "Bolivianos", "Bs", 1.10m, 0m, 3m, 0m, 0m, 2);
 
     public async Task<BusinessSettingsDto> GetAsync(CancellationToken cancellationToken = default)
     {

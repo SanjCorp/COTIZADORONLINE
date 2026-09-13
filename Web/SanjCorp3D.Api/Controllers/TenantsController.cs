@@ -114,6 +114,8 @@ public sealed class TenantsController(
             db.Sales.RemoveRange(await db.Sales.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
             db.QuoteConsumables.RemoveRange(await db.QuoteConsumables.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
             db.QuoteMaterials.RemoveRange(await db.QuoteMaterials.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
+            db.ChatMessages.RemoveRange(await db.ChatMessages.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
+            db.ConsumableStockLots.RemoveRange(await db.ConsumableStockLots.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
             db.Quotes.RemoveRange(await db.Quotes.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
             db.Printers.RemoveRange(await db.Printers.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));
             db.Consumables.RemoveRange(await db.Consumables.IgnoreQueryFilters().Where(x => x.TenantId == id).ToListAsync(ct));

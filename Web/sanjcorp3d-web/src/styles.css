@@ -277,6 +277,17 @@ tr.clickable { cursor: pointer; }
 .tabs { display: flex; gap: .3rem; margin-bottom: 1rem; border-bottom: 1px solid var(--line); }
 .tabs button { border: 0; border-radius: 0; background: transparent; color: var(--muted); padding: .75rem 1rem; border-bottom: 2px solid transparent; }
 .tabs button.active { color: var(--mint); border-bottom-color: var(--mint); }
+.chat-panel { display: flex; flex-direction: column; gap: 1rem; }
+.chat-messages { min-height: 360px; max-height: 520px; overflow-y: auto; display: flex; flex-direction: column; gap: .7rem; padding: .7rem; background: #091310; border: 1px solid var(--line-soft); border-radius: 9px; }
+.chat-message { max-width: min(720px, 82%); padding: .7rem .85rem; border: 1px solid var(--line-soft); border-radius: 9px; background: #102019; }
+.chat-message.mine { align-self: flex-end; background: #12352a; border-color: #2b6855; }
+.chat-message strong, .chat-message small { display: block; }
+.chat-message small { margin-top: .2rem; color: var(--muted); font-size: .63rem; }
+.chat-message p { margin: .55rem 0 0; color: #d7e5df; white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-message img { display: block; max-width: min(420px, 100%); max-height: 360px; margin-top: .6rem; border-radius: 7px; object-fit: contain; }
+.chat-compose { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .55rem; align-items: center; }
+.chat-compose input[type="text"], .chat-compose > input:not([type]) { min-width: 0; }
+.chat-compose button { display: inline-flex; align-items: center; gap: .4rem; }
 .favorite-active { color: var(--mint) !important; border-color: #3a806b !important; }
 .settings-form { max-width: 1000px; }
 .formula-note { display: flex; gap: .6rem; flex-direction: column; margin-top: 1.2rem; padding: .85rem 1rem; color: #a9bbb5; background: #0a1512; border-left: 3px solid var(--mint); font-size: .76rem; }
@@ -365,6 +376,8 @@ tr.clickable { cursor: pointer; }
   .line-item { grid-template-columns: auto minmax(0, 1fr) auto; }
   .line-item > b { grid-column: 2; }
   .line-item > button { grid-column: 3; grid-row: 1 / span 2; }
+  .chat-compose { grid-template-columns: auto 1fr; }
+  .chat-compose > button { grid-column: 1 / -1; }
 }
 
 @media print {

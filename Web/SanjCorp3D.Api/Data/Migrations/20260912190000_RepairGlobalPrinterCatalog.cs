@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using SanjCorp3D.Api.Data;
 
@@ -6,7 +7,7 @@ using SanjCorp3D.Api.Data;
 
 namespace SanjCorp3D.Api.Data.Migrations;
 
-[DbContext(typeof(AppDbContext))]
+[DbContextAttribute(typeof(AppDbContext))]
 [Migration("20260912190000_RepairGlobalPrinterCatalog")]
 public partial class RepairGlobalPrinterCatalog : Migration
 {

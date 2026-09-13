@@ -74,8 +74,10 @@ public sealed class PrintersController(AppDbContext db, TenantContext tenantCont
             .SetProperty(x => x.Speed, input.Speed)
             .SetProperty(x => x.PowerWatts, input.PowerWatts)
             .SetProperty(x => x.HourlyCost, input.HourlyCost)
-            .SetProperty(x => x.Active, input.Active)
-            .SetProperty(x => x.IsDefault, input.Active ? x.IsDefault : false), ct);
+            .SetProperty(x => x.Active, input.Active), ct);
+        if (!input.Active)
+            await db.Printers.IgnoreQueryFilters().Where(x => x.CatalogId == source.CatalogId)
+                .ExecuteUpdateAsync(x => x.SetProperty(p => p.IsDefault, false), ct);
         return Ok(input);
     }
 

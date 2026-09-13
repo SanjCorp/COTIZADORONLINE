@@ -14,7 +14,7 @@ using SanjCorp3D.Api.Services;
 namespace SanjCorp3D.Api.Controllers;
 
 [ApiController,Authorize,Route("api/quotes")]
-public sealed class QuotesController(AppDbContext db,BusinessSettingsService settings,TenantContext tenantContext):ControllerBase
+public sealed class QuotesController(AppDbContext db,BusinessSettingsService settings):ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult>List([FromQuery]string search="",[FromQuery]DateTime? from=null,[FromQuery]DateTime? to=null,CancellationToken ct=default)

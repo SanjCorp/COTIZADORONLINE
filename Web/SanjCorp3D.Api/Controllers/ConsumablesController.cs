@@ -83,7 +83,7 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
         SyncLegacyQuantity(item);
         await ReplaceLots(item, ct);
         await db.SaveChangesAsync(ct);
-        return Ok(item);
+        return Ok(ToResponse(item));
     }
 
     [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpPost("{id:long}/stock/add")]
@@ -124,7 +124,7 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
         item.StockGrams = decimal.Round(item.StockGrams + incomingGrams, 4, MidpointRounding.AwayFromZero);
         SyncLegacyQuantity(item);
         await db.SaveChangesAsync(ct);
-        return Ok(item);
+        return Ok(ToResponse(item));
     }
 
     [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpPost("{id:long}/loss")]
@@ -148,7 +148,7 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
         SyncLegacyQuantity(item);
         db.InventoryLosses.Add(new InventoryLoss { TenantId = item.TenantId, ConsumableId = item.Id, Grams = request.Grams, Reason = string.IsNullOrWhiteSpace(request.Reason) ? "Producto fallido" : request.Reason.Trim() });
         await db.SaveChangesAsync(ct);
-        return Ok(item);
+        return Ok(ToResponse(item));
     }
 
     [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpDelete("{id:long}")]
@@ -176,7 +176,7 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
         try
         {
             await db.SaveChangesAsync(ct);
-            return Ok(item);
+            return Ok(ToResponse(item));
         }
         catch (DbUpdateException)
         {
@@ -191,6 +191,13 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
         if (item.StockGrams > 0)
             db.ConsumableStockLots.Add(new ConsumableStockLot { ConsumableId = item.Id, OriginalGrams = item.StockGrams, RemainingGrams = item.StockGrams, PricePerKilogram = item.PricePerUnit });
     }
+
+    private static object ToResponse(Consumable item) => new
+    {
+        item.Id, item.TenantId, item.Name, item.Category, item.Material, item.Color,
+        item.PricePerUnit, item.Density, item.IsDefault, item.Active, item.StockQuantity,
+        item.StockGrams, item.LowStockGrams
+    };
 
     private static void NormalizeStock(Consumable item)
     {

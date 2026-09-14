@@ -47,6 +47,7 @@ public sealed class Consumable : IActiveEntity, ITenantEntity
     public int StockQuantity { get; set; }
     public decimal StockGrams { get; set; }
     public decimal LowStockGrams { get; set; } = 1000m;
+    [System.Text.Json.Serialization.JsonIgnore]
     public List<ConsumableStockLot> StockLots { get; set; } = [];
 }
 
@@ -55,6 +56,7 @@ public sealed class ConsumableStockLot : ITenantEntity
     public long Id { get; set; }
     public Guid TenantId { get; set; }
     public long ConsumableId { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore]
     public Consumable Consumable { get; set; } = null!;
     public decimal OriginalGrams { get; set; }
     public decimal RemainingGrams { get; set; }

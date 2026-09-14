@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SanjCorp3D.Api.Contracts;
@@ -9,7 +10,7 @@ using SanjCorp3D.Api.Models;
 namespace SanjCorp3D.Api.Controllers;
 
 [ApiController, Authorize, Route("api/consumables")]
-public sealed class ConsumablesController(AppDbContext db) : ControllerBase
+public sealed class ConsumablesController(AppDbContext db, UserManager<ApplicationUser> users) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] bool includeArchived = false, CancellationToken ct = default)
@@ -28,6 +29,7 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
     [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpPost]
     public async Task<IActionResult> Create(Consumable input, CancellationToken ct)
     {
+        if (!await CanManageAsync()) return Forbid();
         input.Id = 0;
         input.Active = true;
         NormalizeStock(input);
@@ -46,6 +48,7 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
     [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpPut("{id:long}")]
     public async Task<IActionResult> Update(long id, Consumable input, CancellationToken ct)
     {
+        if (!await CanManageAsync()) return Forbid();
         var item = await db.Consumables.FindAsync([id], ct);
         if (item is null) return NotFound();
         NormalizeStock(input);
@@ -69,6 +72,7 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
     [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpPatch("{id:long}/stock")]
     public async Task<IActionResult> Stock(long id, [FromBody] StockRequest request, CancellationToken ct)
     {
+        if (!await CanManageAsync()) return Forbid();
         var item = await db.Consumables.FindAsync([id], ct);
         if (item is null) return NotFound();
 
@@ -89,6 +93,7 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
     [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpPost("{id:long}/stock/add")]
     public async Task<IActionResult> AddStock(long id, [FromBody] StockAdditionRequest request, CancellationToken ct)
     {
+        if (!await CanManageAsync()) return Forbid();
         if (request.Kilograms < 0 || request.Grams < 0 || request.PricePerKilogram < 0)
             return BadRequest(new { message = "Los kilos y gramos a agregar no pueden ser negativos." });
 
@@ -130,6 +135,7 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
     [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpPost("{id:long}/loss")]
     public async Task<IActionResult> RegisterLoss(long id, [FromBody] InventoryLossRequest request, CancellationToken ct)
     {
+        if (!await CanManageAsync()) return Forbid();
         if (request.Grams <= 0) return BadRequest(new { message = "Indica una pérdida mayor que cero gramos." });
         var item = await db.Consumables.FindAsync([id], ct);
         if (item is null) return NotFound();
@@ -154,6 +160,7 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
     [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpDelete("{id:long}")]
     public async Task<IActionResult> Archive(long id, CancellationToken ct)
     {
+        if (!await CanManageAsync()) return Forbid();
         var item = await db.Consumables.FindAsync([id], ct);
         if (item is null) return NotFound();
         item.Active = false;
@@ -164,6 +171,13 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
 
     public sealed record StockRequest(decimal? StockGrams, decimal? LowStockGrams, int? Quantity);
     public sealed record StockAdditionRequest(decimal Kilograms, decimal Grams, decimal PricePerKilogram = 0);
+
+    private async Task<bool> CanManageAsync()
+    {
+        if (User.IsInRole(AppRoles.SuperAdmin) || User.IsInRole(AppRoles.Administrator)) return true;
+        var current = await users.GetUserAsync(User);
+        return current?.IsMakerOwner == true && User.IsInRole(AppRoles.Maker);
+    }
 
     private async Task ClearDefault(Consumable input, CancellationToken ct)
     {

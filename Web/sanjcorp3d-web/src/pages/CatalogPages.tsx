@@ -66,7 +66,7 @@ export function ConsumablesPage({ canEdit, currency = 'Bs' }: { canEdit: boolean
   const load = useCallback(() => {
     setLoading(true)
     api.consumables(includeArchived)
-      .then(setItems)
+      .then(items => { setItems(items); setError('') })
       .catch(reason => setError((reason as Error).message))
       .finally(() => setLoading(false))
   }, [includeArchived])
@@ -90,7 +90,7 @@ export function ConsumablesPage({ canEdit, currency = 'Bs' }: { canEdit: boolean
   }
 
   function receive(item: Consumable) { setEntry(item); setEntryKg(0); setEntryGrams(0); setEntryPrice(item.pricePerUnit); setError('') }
-  async function saveEntry(event: FormEvent) { event.preventDefault(); if (!entry || entryPrice < 0 || entryKg * 1000 + entryGrams <= 0) { setError('Indica cantidad y precio válidos para el ingreso.'); return } try { await api.addStock(entry.id, entryKg, entryGrams, entryPrice); setSuccess('Ingreso de lote registrado.'); setEntry(null); load(); window.dispatchEvent(new Event('inventory-changed')) } catch (reason) { setError((reason as Error).message) } }
+  async function saveEntry(event: FormEvent) { event.preventDefault(); if (!entry || entryPrice < 0 || entryKg * 1000 + entryGrams <= 0) { setError('Indica cantidad y precio válidos para el ingreso.'); return } try { await api.addStock(entry.id, entryKg, entryGrams, entryPrice); setError(''); setSuccess('Ingreso de lote registrado.'); setEntry(null); load(); window.dispatchEvent(new Event('inventory-changed')) } catch (reason) { setError((reason as Error).message) } }
 
   function updateWeight(kilos: number, remainder: number) {
     if (!draft) return

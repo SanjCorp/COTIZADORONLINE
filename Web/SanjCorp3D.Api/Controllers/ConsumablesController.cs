@@ -98,7 +98,7 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
         var lots = await db.ConsumableStockLots.Where(x => x.ConsumableId == item.Id).OrderBy(x => x.ReceivedAtUtc).ThenBy(x => x.Id).ToListAsync(ct);
         if (lots.Count == 0 && item.StockGrams > 0)
         {
-            lots.Add(new ConsumableStockLot { ConsumableId = item.Id, OriginalGrams = item.StockGrams, RemainingGrams = item.StockGrams, PricePerKilogram = item.PricePerUnit });
+            lots.Add(new ConsumableStockLot { TenantId = item.TenantId, ConsumableId = item.Id, OriginalGrams = item.StockGrams, RemainingGrams = item.StockGrams, PricePerKilogram = item.PricePerUnit });
             db.ConsumableStockLots.Add(lots[0]);
         }
         var incomingPrice = request.PricePerKilogram > 0 ? request.PricePerKilogram : item.PricePerUnit;
@@ -112,12 +112,12 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
                 lots[index].RemainingGrams -= take;
                 left -= take;
             }
-            db.ConsumableStockLots.Add(new ConsumableStockLot { ConsumableId = item.Id, OriginalGrams = blendGrams + incomingGrams, RemainingGrams = blendGrams + incomingGrams, PricePerKilogram = decimal.Round((item.PricePerUnit + incomingPrice) / 2m, 4, MidpointRounding.AwayFromZero) });
+            db.ConsumableStockLots.Add(new ConsumableStockLot { TenantId = item.TenantId, ConsumableId = item.Id, OriginalGrams = blendGrams + incomingGrams, RemainingGrams = blendGrams + incomingGrams, PricePerKilogram = decimal.Round((item.PricePerUnit + incomingPrice) / 2m, 4, MidpointRounding.AwayFromZero) });
             item.PricePerUnit = decimal.Round((item.PricePerUnit + incomingPrice) / 2m, 4, MidpointRounding.AwayFromZero);
         }
         else
         {
-            db.ConsumableStockLots.Add(new ConsumableStockLot { ConsumableId = item.Id, OriginalGrams = incomingGrams, RemainingGrams = incomingGrams, PricePerKilogram = incomingPrice });
+            db.ConsumableStockLots.Add(new ConsumableStockLot { TenantId = item.TenantId, ConsumableId = item.Id, OriginalGrams = incomingGrams, RemainingGrams = incomingGrams, PricePerKilogram = incomingPrice });
             item.PricePerUnit = incomingPrice;
         }
         item.StockGrams = decimal.Round(item.StockGrams + incomingGrams, 4, MidpointRounding.AwayFromZero);

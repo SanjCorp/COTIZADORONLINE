@@ -11,7 +11,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS api-build
 WORKDIR /src
 # Bump this revision when a migration or API source is added so hosted
 # BuildKit caches cannot reuse an image built without the new files.
-ARG BUILD_REVISION=cdc40a1-chat-lots-v1
+ARG BUILD_REVISION=e15c56e-ef-snapshot-fix-v2
 RUN echo "Building API revision ${BUILD_REVISION}"
 COPY Web/SanjCorp3D.Api/SanjCorp3D.Api.csproj Web/SanjCorp3D.Api/
 RUN dotnet restore Web/SanjCorp3D.Api/SanjCorp3D.Api.csproj

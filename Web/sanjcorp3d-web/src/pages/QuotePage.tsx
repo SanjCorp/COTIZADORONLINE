@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Calculator, CheckCircle2, Download, Plus, RotateCcw, Save, ShoppingBag, Trash2 } from 'lucide-react'
 import { api } from '../api'
-import type { BusinessSettings, Consumable, ConsumableUsage, ExtraMaterial, MaterialUsage, Printer, QuoteCalculation, QuoteRequest, QuoteSummary } from '../types'
+import type { BusinessSettings, Consumable, ConsumableUsage, ExtraMaterial, MaterialUsage, Printer, ProductCatalog, QuoteCalculation, QuoteRequest, QuoteSummary } from '../types'
 import { Empty, ErrorMessage, Loading, PageHeader, SuccessMessage, money, number, weight } from '../ui'
 
 type BaseForm = { customer: string; customerPhone: string; projectName: string; printerId: number; hours: number; minutes: number; quantity: number; additionalManualCost: number; profitMultiplier: number; notes: string }
@@ -11,6 +11,9 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
   const [printers, setPrinters] = useState<Printer[]>([])
   const [consumables, setConsumables] = useState<Consumable[]>([])
   const [materials, setMaterials] = useState<ExtraMaterial[]>([])
+  const [products, setProducts] = useState<ProductCatalog[]>([])
+  const [selectedProduct, setSelectedProduct] = useState('')
+  const [customPrice, setCustomPrice] = useState(0)
   const [settings, setSettings] = useState<BusinessSettings>()
   const [form, setForm] = useState<BaseForm>(emptyForm)
   const [consumableLines, setConsumableLines] = useState<ConsumableUsage[]>([])
@@ -28,10 +31,10 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    Promise.all([api.printers(), api.consumables(), api.materials(), api.settings()])
-      .then(([printerItems, consumableItems, materialItems, configuration]) => {
+    Promise.all([api.printers(), api.consumables(), api.materials(), api.settings(), api.products()])
+      .then(([printerItems, consumableItems, materialItems, configuration, productItems]) => {
         const favoritePrinters = printerItems.filter(x => x.isDefault)
-        setPrinters(favoritePrinters); setConsumables(consumableItems); setMaterials(materialItems); setSettings(configuration)
+        setPrinters(favoritePrinters); setConsumables(consumableItems); setMaterials(materialItems); setSettings(configuration); setProducts(productItems)
         setForm(current => ({ ...current, printerId: favoritePrinters[0]?.id ?? 0, profitMultiplier: configuration.defaultProfitMultiplier }))
         setSelectedConsumable(consumableItems.find(x => x.isDefault)?.id ?? consumableItems[0]?.id ?? 0)
         setSelectedMaterial(materialItems[0]?.id ?? 0)
@@ -58,7 +61,7 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
   }
 
   function request(): QuoteRequest {
-    return { customer: form.customer, customerPhone: form.customerPhone, projectName: form.projectName, printerId: form.printerId, printHours: form.hours + form.minutes / 60, quantity: form.quantity, additionalManualCost: form.additionalManualCost, profitMultiplier: form.profitMultiplier, notes: form.notes, consumables: consumableLines, materials: materialLines }
+    return { customer: form.customer, customerPhone: form.customerPhone, projectName: form.projectName, productName: selectedProduct, printerId: form.printerId, printHours: form.hours + form.minutes / 60, quantity: form.quantity, additionalManualCost: form.additionalManualCost, profitMultiplier: form.profitMultiplier, notes: form.notes, consumables: consumableLines, materials: materialLines }
   }
 
   async function calculate() {
@@ -74,7 +77,8 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
     try {
       const payload = request()
       const [result, totals] = await Promise.all([api.createQuote(payload), api.calculateQuote(payload)])
-      setSaved(result); setCalculation(totals); setSuccess(`Cotización ${result.orderCode} guardada correctamente.`)
+      const finalPrice = customPrice > 0 ? (await api.updateQuotePrice(result.id, customPrice)).recommendedPrice : result.recommendedPrice
+      setSaved({ ...result, recommendedPrice: finalPrice }); setCalculation(totals); setSuccess(`Cotización ${result.orderCode} guardada correctamente.`)
     } catch (reason) { setError((reason as Error).message) }
     finally { setBusy(false) }
   }
@@ -89,7 +93,7 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
 
   function clear() {
     setForm({ ...emptyForm, printerId: printers[0]?.id ?? 0, profitMultiplier: settings?.defaultProfitMultiplier ?? 3 })
-    setConsumableLines([]); setMaterialLines([]); setCalculation(undefined); setSaved(undefined); setSold(false); setError(''); setSuccess('')
+    setConsumableLines([]); setMaterialLines([]); setCalculation(undefined); setSaved(undefined); setSold(false); setSelectedProduct(''); setCustomPrice(0); setError(''); setSuccess('')
   }
 
   if (loading) return <Loading label="Cargando catálogos…" />
@@ -108,6 +112,7 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
             <label>Cliente<input value={form.customer} onChange={e => update('customer', e.target.value)} placeholder="Nombre del cliente" /></label>
             <label>Celular del cliente <small>(solo al guardar)</small><input value={form.customerPhone} onChange={e => update('customerPhone', e.target.value)} placeholder="70000000" inputMode="tel" /></label>
             <label>Pieza o proyecto<input value={form.projectName} onChange={e => update('projectName', e.target.value)} placeholder="Ej. Soporte personalizado" /></label>
+            <label>Producto a la venta<select value={selectedProduct} onChange={e => { setSelectedProduct(e.target.value); invalidate() }}><option value="">Producto personalizado…</option>{products.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label>
             <label className="span-2">Impresora<select value={form.printerId} onChange={e => update('printerId', Number(e.target.value))}>{printers.map(x => <option key={x.id} value={x.id}>{x.name} · {x.buildX}×{x.buildY}×{x.buildZ} mm</option>)}</select></label>
             <label>Horas<input type="number" min="0" step="1" value={form.hours} onChange={e => update('hours', Number(e.target.value))} /></label>
             <label>Minutos<input type="number" min="0" max="59" step="1" value={form.minutes} onChange={e => update('minutes', Number(e.target.value))} /></label>
@@ -120,7 +125,7 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
           <div className="section-title"><div><span className="step">02</span><h2>Filamentos y resinas</h2></div></div>
           <div className="inline-form consumable-picker">
             <label>Consumible<select value={selectedConsumable} onChange={e => setSelectedConsumable(Number(e.target.value))}>{consumables.map(x => <option key={x.id} value={x.id}>{x.name} · {x.material} · {x.color} · {weight(x.stockGrams ?? x.stockQuantity * 1000)} disp.</option>)}</select></label>
-            <label>Gramos<input type="number" min="0.01" step="0.01" value={grams} onChange={e => setGrams(Number(e.target.value))} /></label>
+            <label>Gramos<input list="common-grams" type="number" min="0.01" step="0.01" value={grams} onChange={e => setGrams(Number(e.target.value))} /></label><datalist id="common-grams"><option value="50" /><option value="100" /><option value="150" /><option value="200" /><option value="250" /><option value="300" /><option value="500" /><option value="750" /><option value="1000" /></datalist>
             <button type="button" onClick={addConsumable}><Plus size={17} />Agregar</button>
           </div>
           {consumableLines.length === 0 ? <Empty>Agrega al menos un filamento o resina.</Empty> : <div className="line-list">{consumableLines.map((line, index) => {
@@ -147,7 +152,7 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
       <aside className="quote-summary panel">
         <p className="eyebrow">RESULTADO</p><h2>Precio recomendado</h2>
         {!calculation ? <div className="summary-placeholder"><Calculator size={34} /><p>Completa los datos y calcula para ver el desglose.</p></div> : <>
-          <div className="price-hero"><small>Total sugerido</small><strong>{money(calculation.recommendedPrice, settings?.currencySymbol)}</strong><span>{number(calculation.totalWeight)} g totales</span></div>
+          <div className="price-hero"><small>Total sugerido</small><strong>{money(customPrice > 0 ? customPrice : calculation.recommendedPrice, settings?.currencySymbol)}</strong><span>{number(calculation.totalWeight)} g totales</span><label>Editar precio final<input type="number" min="0.01" step="0.01" value={customPrice || calculation.recommendedPrice} onChange={e => setCustomPrice(Math.max(0, Number(e.target.value)))} /></label></div>
           <dl className="breakdown">
             <div><dt>Consumibles</dt><dd>{money(calculation.materialCost, settings?.currencySymbol)}</dd></div>
             <div><dt>Electricidad</dt><dd>{money(calculation.electricityCost, settings?.currencySymbol)}</dd></div>

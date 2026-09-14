@@ -62,6 +62,26 @@ public sealed class ConsumableStockLot : ITenantEntity
     public DateTime ReceivedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
+public sealed class InventoryLoss : ITenantEntity
+{
+    public long Id { get; set; }
+    public Guid TenantId { get; set; }
+    public long ConsumableId { get; set; }
+    public Consumable Consumable { get; set; } = null!;
+    public decimal Grams { get; set; }
+    public required string Reason { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class ProductCatalog : ITenantEntity
+{
+    public long Id { get; set; }
+    public Guid TenantId { get; set; }
+    public required string Name { get; set; }
+    public bool Active { get; set; } = true;
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
 public sealed class ExtraMaterial : IActiveEntity, ITenantEntity
 {
     public long Id { get; set; }
@@ -82,6 +102,7 @@ public sealed class Quote : ITenantEntity
     public required string Customer { get; set; }
     public required string CustomerPhone { get; set; }
     public required string ProjectName { get; set; }
+    public string ProductName { get; set; } = string.Empty;
     public required string PrinterName { get; set; }
     public decimal PrintHours { get; set; }
     public int Quantity { get; set; }

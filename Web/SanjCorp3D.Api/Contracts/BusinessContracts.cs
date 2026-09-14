@@ -17,7 +17,7 @@ public sealed record QuoteRequest(
     string Customer, string ProjectName, long PrinterId, decimal PrintHours,
     int Quantity, decimal AdditionalManualCost, decimal ProfitMultiplier,
     string Notes, IReadOnlyList<ConsumableUsageRequest> Consumables,
-    IReadOnlyList<MaterialUsageRequest> Materials, string? CustomerPhone = null);
+    IReadOnlyList<MaterialUsageRequest> Materials, string? CustomerPhone = null, string? ProductName = null);
 
 public sealed record QuoteCalculationDto(
     decimal TotalWeight, decimal MaterialCost, decimal ElectricityCost,
@@ -30,3 +30,6 @@ public sealed record TenantDto(Guid Id, string Name, string Slug, string Kind, s
 public sealed record CreateMakerTenantRequest(string Name, string Slug, string? LogoUrl, string Username, string DisplayName, string? Email, string Password);
 public sealed record UpdateTenantRequest(string Name, string? LogoUrl, bool Active);
 public sealed record CreateMakerUserRequest(string Username, string DisplayName, string? Email, string Password);
+public sealed record ProductCatalogDto(long Id, string Name, bool Active);
+public sealed record CreateProductRequest(string Name);
+public sealed record InventoryLossRequest(decimal Grams, string Reason);

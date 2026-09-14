@@ -32,7 +32,7 @@ public sealed class QuotesController(AppDbContext db,BusinessSettingsService set
     {
         var q=await db.Quotes.AsNoTracking().AsSplitQuery().Where(x=>x.Id==id).Select(x=>new
         {
-            x.Id,x.OrderCode,x.CreatedAtUtc,x.Customer,x.CustomerPhone,x.ProjectName,x.PrinterName,x.PrintHours,x.Quantity,
+            x.Id,x.OrderCode,x.CreatedAtUtc,x.Customer,x.CustomerPhone,x.ProjectName,x.ProductName,x.PrinterName,x.PrintHours,x.Quantity,
             x.AdditionalManualCost,x.ProfitMultiplier,x.Notes,x.TotalWeight,x.MaterialCost,x.ElectricityCost,
             x.MachineCost,x.MaintenanceCost,x.LaborCost,x.AdditionalCost,x.FunctionalSurcharge,x.Subtotal,
             x.ProfitAmount,x.TaxAmount,x.RecommendedPrice,
@@ -60,13 +60,41 @@ public sealed class QuotesController(AppDbContext db,BusinessSettingsService set
             db.ChangeTracker.Clear();
             await using var transaction=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
             long next=(await db.Quotes.MaxAsync(x=>(long?)x.Id,ct)??0)+1;var created=DateTime.UtcNow;
-            var quote=new Quote{OrderCode=$"{Initial(request.Customer)}{Initial(resolved.Printer.Name)}{created:yyyyMMdd}{next:0000}",CreatedAtUtc=created,Customer=request.Customer.Trim(),CustomerPhone=request.CustomerPhone.Trim(),ProjectName=request.ProjectName.Trim(),PrinterName=resolved.Printer.Name,PrintHours=request.PrintHours,Quantity=request.Quantity,AdditionalManualCost=request.AdditionalManualCost,ProfitMultiplier=request.ProfitMultiplier,Notes=request.Notes?.Trim()??string.Empty,TotalWeight=calculation.TotalWeight,MaterialCost=calculation.MaterialCost,ElectricityCost=calculation.ElectricityCost,MachineCost=0,MaintenanceCost=calculation.MaintenanceCost,LaborCost=0,AdditionalCost=calculation.AdditionalCost,FunctionalSurcharge=0,Subtotal=calculation.Subtotal,ProfitAmount=calculation.ProfitAmount,TaxAmount=calculation.TaxAmount,RecommendedPrice=calculation.RecommendedPrice};
+            var quote=new Quote{OrderCode=$"{Initial(request.Customer)}{Initial(resolved.Printer.Name)}{created:yyyyMMdd}{next:0000}",CreatedAtUtc=created,Customer=request.Customer.Trim(),CustomerPhone=request.CustomerPhone.Trim(),ProjectName=request.ProjectName.Trim(),ProductName=request.ProductName?.Trim()??string.Empty,PrinterName=resolved.Printer.Name,PrintHours=request.PrintHours,Quantity=request.Quantity,AdditionalManualCost=request.AdditionalManualCost,ProfitMultiplier=request.ProfitMultiplier,Notes=request.Notes?.Trim()??string.Empty,TotalWeight=calculation.TotalWeight,MaterialCost=calculation.MaterialCost,ElectricityCost=calculation.ElectricityCost,MachineCost=0,MaintenanceCost=calculation.MaintenanceCost,LaborCost=0,AdditionalCost=calculation.AdditionalCost,FunctionalSurcharge=0,Subtotal=calculation.Subtotal,ProfitAmount=calculation.ProfitAmount,TaxAmount=calculation.TaxAmount,RecommendedPrice=calculation.RecommendedPrice};
             foreach(var line in resolved.Consumables)quote.Consumables.Add(new QuoteConsumable{LegacyConsumableId=line.Item.Id,Name=line.Item.Name,Category=line.Item.Category,Material=line.Item.Material,Color=line.Item.Color,Grams=line.Grams,PricePerUnit=line.Item.PricePerUnit,Density=line.Item.Density,LineCost=decimal.Round(line.UnitCost*request.Quantity,4,MidpointRounding.AwayFromZero)});
             foreach(var line in resolved.Materials)quote.Materials.Add(new QuoteMaterial{LegacyMaterialId=line.Item.Id,Name=line.Item.Name,Quantity=line.Quantity,UnitPrice=line.Item.UnitPrice,LineCost=decimal.Round(line.Cost,4,MidpointRounding.AwayFromZero)});
             db.Quotes.Add(quote);await db.SaveChangesAsync(ct);await transaction.CommitAsync(ct);
-            return CreatedAtAction(nameof(Get),new{id=quote.Id},new{quote.Id,quote.OrderCode,quote.CreatedAtUtc,quote.Customer,quote.ProjectName,quote.PrinterName,quote.TotalWeight,CostTotal=quote.Subtotal,quote.RecommendedPrice,SoldAtUtc=(DateTime?)null});
+            return CreatedAtAction(nameof(Get),new{id=quote.Id},new{quote.Id,quote.OrderCode,quote.CreatedAtUtc,quote.Customer,quote.ProjectName,quote.ProductName,quote.PrinterName,quote.TotalWeight,CostTotal=quote.Subtotal,quote.RecommendedPrice,SoldAtUtc=(DateTime?)null});
         });
     }
+
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Sales},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpPatch("{id:long}/price")]
+    public async Task<IActionResult> UpdatePrice(long id, [FromBody] PriceUpdateRequest request, CancellationToken ct)
+    {
+        if (request.Price <= 0) return BadRequest(new { message = "El precio final debe ser mayor que cero." });
+        var quote = await db.Quotes.Include(x => x.Sale).FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (quote is null) return NotFound();
+        if (quote.Sale is not null) return Conflict(new { message = "No puedes cambiar el precio de una venta confirmada." });
+        quote.RecommendedPrice = decimal.Round(request.Price, 2, MidpointRounding.AwayFromZero);
+        quote.ProfitAmount = quote.RecommendedPrice - quote.Subtotal - quote.TaxAmount;
+        await db.SaveChangesAsync(ct);
+        return Ok(new { quote.Id, quote.RecommendedPrice, quote.ProfitAmount });
+    }
+
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Sales},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpPost("{id:long}/copy")]
+    public async Task<IActionResult> Copy(long id, CancellationToken ct)
+    {
+        var source = await db.Quotes.AsNoTracking().Include(x => x.Consumables).Include(x => x.Materials).FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (source is null) return NotFound();
+        var now = DateTime.UtcNow;
+        var copy = new Quote { OrderCode = $"COPIA{now:yyyyMMddHHmmss}", CreatedAtUtc = now, Customer = source.Customer, CustomerPhone = source.CustomerPhone, ProjectName = source.ProjectName, ProductName = source.ProductName, PrinterName = source.PrinterName, PrintHours = source.PrintHours, Quantity = source.Quantity, AdditionalManualCost = source.AdditionalManualCost, ProfitMultiplier = source.ProfitMultiplier, Notes = source.Notes, TotalWeight = source.TotalWeight, MaterialCost = source.MaterialCost, ElectricityCost = source.ElectricityCost, MachineCost = source.MachineCost, MaintenanceCost = source.MaintenanceCost, LaborCost = source.LaborCost, AdditionalCost = source.AdditionalCost, FunctionalSurcharge = source.FunctionalSurcharge, Subtotal = source.Subtotal, ProfitAmount = source.ProfitAmount, TaxAmount = source.TaxAmount, RecommendedPrice = source.RecommendedPrice };
+        foreach (var line in source.Consumables) copy.Consumables.Add(new QuoteConsumable { LegacyConsumableId = line.LegacyConsumableId, Name = line.Name, Category = line.Category, Material = line.Material, Color = line.Color, Grams = line.Grams, PricePerUnit = line.PricePerUnit, Density = line.Density, LineCost = line.LineCost });
+        foreach (var line in source.Materials) copy.Materials.Add(new QuoteMaterial { LegacyMaterialId = line.LegacyMaterialId, Name = line.Name, Quantity = line.Quantity, UnitPrice = line.UnitPrice, LineCost = line.LineCost });
+        db.Quotes.Add(copy); await db.SaveChangesAsync(ct);
+        return Ok(new { copy.Id, copy.OrderCode, copy.CreatedAtUtc, copy.Customer, copy.ProjectName, copy.ProductName, copy.PrinterName, copy.TotalWeight, CostTotal = copy.Subtotal, copy.RecommendedPrice, SoldAtUtc = (DateTime?)null });
+    }
+
+    public sealed record PriceUpdateRequest(decimal Price);
 
     [Authorize(Roles=$"{AppRoles.Administrator},{AppRoles.Sales},{AppRoles.Maker},{AppRoles.SuperAdmin}"),HttpPost("{id:long}/sale")]
     public async Task<IActionResult>ConfirmSale(long id,CancellationToken ct)

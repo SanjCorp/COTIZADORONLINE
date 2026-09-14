@@ -43,7 +43,7 @@ export type ConsumableUsage = { consumableId: number; grams: number }
 export type MaterialUsage = { materialId: number; quantity: number }
 
 export type QuoteRequest = {
-  customer: string; customerPhone?: string; projectName: string; printerId: number; printHours: number; quantity: number
+  customer: string; customerPhone?: string; projectName: string; productName?: string; printerId: number; printHours: number; quantity: number
   additionalManualCost: number; profitMultiplier: number; notes: string
   consumables: ConsumableUsage[]; materials: MaterialUsage[]
 }
@@ -54,12 +54,12 @@ export type QuoteCalculation = {
 }
 
 export type QuoteSummary = {
-  id: number; orderCode: string; createdAtUtc: string; customer: string; projectName: string
+  id: number; orderCode: string; createdAtUtc: string; customer: string; projectName: string; productName?: string
   printerName: string; totalWeight: number; costTotal: number; recommendedPrice: number; soldAtUtc?: string
 }
 
 export type QuoteDetail = {
-  id: number; orderCode: string; createdAtUtc: string; customer: string; customerPhone?: string; projectName: string; printerName: string
+  id: number; orderCode: string; createdAtUtc: string; customer: string; customerPhone?: string; projectName: string; productName?: string; printerName: string
   printHours: number; quantity: number; additionalManualCost: number; profitMultiplier: number; notes: string
   totalWeight: number; materialCost: number; electricityCost: number; machineCost: number; maintenanceCost: number
   laborCost: number; additionalCost: number; functionalSurcharge: number; subtotal: number; profitAmount: number
@@ -73,6 +73,7 @@ export type Report = {
   quoteCount: number; totalCost: number; projectedRevenue: number; projectedProfit: number
   saleCount: number; salesRevenue: number; salesProfit: number; sales: SaleSummary[]
   consumableDistribution: Array<{ name: string; grams: number }>; costDistribution: Array<{ name: string; value: number }>
+  productDistribution: Array<{ name: string; quantity: number; revenue: number }>; lossDistribution: Array<{ name: string; grams: number }>
 }
 
 export type SaleSummary = {
@@ -86,5 +87,6 @@ export type UserAccount = {
 }
 export type Tenant = { id: string; name: string; slug: string; kind: string; logoUrl?: string; active: boolean; userCount: number }
 export type ChatMessage = { id: number; tenantId: string; senderUserId: string; senderName: string; body: string; photoUrl?: string; createdAtUtc: string }
+export type ProductCatalog = { id: number; name: string; active: boolean }
 
 export type TwoFactorSetup = { sharedKey: string; authenticatorUri: string }

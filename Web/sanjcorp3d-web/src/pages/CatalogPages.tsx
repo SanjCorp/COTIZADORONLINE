@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, Boxes, Edit3, Plus, Printer as PrinterIcon, RefreshCw, Star, Upload } from 'lucide-react'
+import { Archive, Boxes, Edit3, Plus, Printer as PrinterIcon, RefreshCw, Star, Trash2, Upload } from 'lucide-react'
 import { api } from '../api'
 import type { Consumable, ExtraMaterial, Printer } from '../types'
 import { Empty, ErrorMessage, Loading, PageHeader, Status, SuccessMessage, money, number, weight } from '../ui'
@@ -59,6 +59,7 @@ export function ConsumablesPage({ canEdit, currency = 'Bs' }: { canEdit: boolean
   const [entryKg, setEntryKg] = useState(0)
   const [entryGrams, setEntryGrams] = useState(0)
   const [entryPrice, setEntryPrice] = useState(0)
+  const [loss, setLoss] = useState<Consumable | null>(null); const [lossGrams, setLossGrams] = useState(0); const [lossReason, setLossReason] = useState('Producto fallido')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(true)
@@ -90,7 +91,9 @@ export function ConsumablesPage({ canEdit, currency = 'Bs' }: { canEdit: boolean
   }
 
   function receive(item: Consumable) { setEntry(item); setEntryKg(0); setEntryGrams(0); setEntryPrice(item.pricePerUnit); setError('') }
+  function reportLoss(item: Consumable) { setLoss(item); setLossGrams(0); setLossReason('Producto fallido'); setError('') }
   async function saveEntry(event: FormEvent) { event.preventDefault(); if (!entry || entryPrice < 0 || entryKg * 1000 + entryGrams <= 0) { setError('Indica cantidad y precio válidos para el ingreso.'); return } try { await api.addStock(entry.id, entryKg, entryGrams, entryPrice); setError(''); setSuccess('Ingreso de lote registrado.'); setEntry(null); load(); window.dispatchEvent(new Event('inventory-changed')) } catch (reason) { setError((reason as Error).message) } }
+  async function saveLoss(event: FormEvent) { event.preventDefault(); if (!loss || lossGrams <= 0) { setError('Indica los gramos perdidos.'); return } try { await api.registerLoss(loss.id, lossGrams, lossReason); setError(''); setSuccess('Pérdida registrada y descontada del inventario.'); setLoss(null); load(); window.dispatchEvent(new Event('inventory-changed')) } catch (reason) { setError((reason as Error).message) } }
 
   function updateWeight(kilos: number, remainder: number) {
     if (!draft) return
@@ -135,7 +138,7 @@ export function ConsumablesPage({ canEdit, currency = 'Bs' }: { canEdit: boolean
           const total = currentGrams(item)
           const threshold = Number(item.lowStockGrams ?? 1000)
           const low = total <= threshold
-          return <tr key={item.id} className={!item.active ? 'archived-row' : ''}><td><strong>{item.name}</strong>{item.isDefault && <span className="preferred inline">PREDET.</span>}</td><td>{item.material} · {item.color}<small className="cell-note">{item.category} · densidad {number(item.density)}</small></td><td>{money(item.pricePerUnit, currency)} / kg</td><td><strong className={low ? 'low-stock' : ''}>{weight(total)}</strong><small className="cell-note">Alerta: {weight(threshold)}</small></td><td><Status active={item.active && !low} trueLabel="DISPONIBLE" falseLabel={!item.active ? 'ARCHIVADO' : total <= 0 ? 'AGOTADO' : 'STOCK BAJO'} /></td>{canEdit && <td><div className="row-actions"><button className="icon ghost" title="Registrar ingreso" onClick={() => receive(item)}><Upload size={15} /></button><button className="icon ghost" title="Editar" onClick={() => edit(item)}><Edit3 size={15} /></button>{item.active && <button className="icon ghost danger-text" title="Archivar" onClick={() => archive(item)}><Archive size={15} /></button>}</div></td>}</tr>
+          return <tr key={item.id} className={!item.active ? 'archived-row' : ''}><td><strong>{item.name}</strong>{item.isDefault && <span className="preferred inline">PREDET.</span>}</td><td>{item.material} · {item.color}<small className="cell-note">{item.category} · densidad {number(item.density)}</small></td><td>{money(item.pricePerUnit, currency)} / kg</td><td><strong className={low ? 'low-stock' : ''}>{weight(total)}</strong><small className="cell-note">Alerta: {weight(threshold)}</small></td><td><Status active={item.active && !low} trueLabel="DISPONIBLE" falseLabel={!item.active ? 'ARCHIVADO' : total <= 0 ? 'AGOTADO' : 'STOCK BAJO'} /></td>{canEdit && <td><div className="row-actions"><button className="icon ghost" title="Registrar ingreso" onClick={() => receive(item)}><Upload size={15} /></button><button className="icon ghost" title="Registrar pérdida" onClick={() => reportLoss(item)}><Trash2 size={15} /></button><button className="icon ghost" title="Editar" onClick={() => edit(item)}><Edit3 size={15} /></button>{item.active && <button className="icon ghost danger-text" title="Archivar" onClick={() => archive(item)}><Archive size={15} /></button>}</div></td>}</tr>
         })}</tbody></table></div>}
       </section>
       {draft && <form className="panel editor" onSubmit={save}>
@@ -148,6 +151,7 @@ export function ConsumablesPage({ canEdit, currency = 'Bs' }: { canEdit: boolean
         <div className="editor-actions"><button type="button" className="ghost" onClick={() => setDraft(null)}>Cancelar</button><button>Guardar</button></div>
       </form>}
       {entry && <form className="panel editor" onSubmit={saveEntry}><div className="section-title"><div><p className="eyebrow">NUEVO LOTE</p><h2>Ingreso de {entry.name}</h2></div><button type="button" className="icon ghost" onClick={() => setEntry(null)}>×</button></div><p className="field-help">El lote queda separado para calcular automáticamente el precio por antigüedad.</p><div className="form-grid two"><label>Kilos<input type="number" min="0" step="0.01" value={entryKg} onChange={e => setEntryKg(Math.max(0, Number(e.target.value)))} /></label><label>Gramos adicionales<input type="number" min="0" max="999.99" step="0.01" value={entryGrams} onChange={e => setEntryGrams(Math.max(0, Number(e.target.value)))} /></label></div><label>Precio por kg<input required type="number" min="0" step="0.01" value={entryPrice} onChange={e => setEntryPrice(Math.max(0, Number(e.target.value)))} /></label><div className="editor-actions"><button type="button" className="ghost" onClick={() => setEntry(null)}>Cancelar</button><button><Upload size={16} />Registrar ingreso</button></div></form>}
+      {loss && <form className="panel editor" onSubmit={saveLoss}><div className="section-title"><div><p className="eyebrow">PÉRDIDA DE MATERIAL</p><h2>{loss.name}</h2></div><button type="button" className="icon ghost" onClick={() => setLoss(null)}>×</button></div><p className="field-help">Registra gramos usados en una impresión fallida para descontarlos y analizarlos.</p><label>Gramos perdidos<input required type="number" min="0.01" step="0.01" value={lossGrams} onChange={e => setLossGrams(Math.max(0, Number(e.target.value)))} /></label><label>Motivo<input value={lossReason} onChange={e => setLossReason(e.target.value)} /></label><div className="editor-actions"><button type="button" className="ghost" onClick={() => setLoss(null)}>Cancelar</button><button><Trash2 size={16} />Registrar pérdida</button></div></form>}
     </div>
   </>
 }

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using SanjCorp3D.Api.Contracts;
 using SanjCorp3D.Api.Data;
 using SanjCorp3D.Api.Identity;
 using SanjCorp3D.Api.Models;
@@ -122,6 +123,30 @@ public sealed class ConsumablesController(AppDbContext db) : ControllerBase
         }
         item.StockGrams = decimal.Round(item.StockGrams + incomingGrams, 4, MidpointRounding.AwayFromZero);
         SyncLegacyQuantity(item);
+        await db.SaveChangesAsync(ct);
+        return Ok(item);
+    }
+
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Production},{AppRoles.Maker},{AppRoles.SuperAdmin}"), HttpPost("{id:long}/loss")]
+    public async Task<IActionResult> RegisterLoss(long id, [FromBody] InventoryLossRequest request, CancellationToken ct)
+    {
+        if (request.Grams <= 0) return BadRequest(new { message = "Indica una pérdida mayor que cero gramos." });
+        var item = await db.Consumables.FindAsync([id], ct);
+        if (item is null) return NotFound();
+        if (item.StockGrams + 0.0001m < request.Grams)
+            return BadRequest(new { message = "La pérdida supera la existencia disponible." });
+        var lots = await db.ConsumableStockLots.Where(x => x.ConsumableId == id).OrderBy(x => x.ReceivedAtUtc).ThenBy(x => x.Id).ToListAsync(ct);
+        var left = request.Grams;
+        foreach (var lot in lots)
+        {
+            if (left <= 0) break;
+            var take = Math.Min(left, lot.RemainingGrams);
+            lot.RemainingGrams -= take;
+            left -= take;
+        }
+        item.StockGrams = decimal.Round(item.StockGrams - request.Grams, 4, MidpointRounding.AwayFromZero);
+        SyncLegacyQuantity(item);
+        db.InventoryLosses.Add(new InventoryLoss { TenantId = item.TenantId, ConsumableId = item.Id, Grams = request.Grams, Reason = string.IsNullOrWhiteSpace(request.Reason) ? "Producto fallido" : request.Reason.Trim() });
         await db.SaveChangesAsync(ct);
         return Ok(item);
     }

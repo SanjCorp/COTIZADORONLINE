@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, Boxes, Edit3, Plus, Printer as PrinterIcon, RefreshCw, Star, Trash2, Upload } from 'lucide-react'
+import { Archive, Boxes, Edit3, Filter, Plus, Printer as PrinterIcon, RefreshCw, Star, Trash2, Upload, X } from 'lucide-react'
 import { api } from '../api'
 import type { Consumable, ExtraMaterial, Printer } from '../types'
 import { Empty, ErrorMessage, Loading, PageHeader, Status, SuccessMessage, money, number, weight } from '../ui'
@@ -52,6 +52,9 @@ export function ConsumablesPage({ canEdit, currency = 'Bs' }: { canEdit: boolean
   const [items, setItems] = useState<Consumable[]>([])
   const [includeArchived, setIncludeArchived] = useState(false)
   const [category, setCategory] = useState('Todos')
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [filterBrand, setFilterBrand] = useState('')
+  const [filterMaterial, setFilterMaterial] = useState('')
   const [draft, setDraft] = useState<Consumable | null>(null)
   const [stockKg, setStockKg] = useState(0)
   const [stockRemainder, setStockRemainder] = useState(0)
@@ -73,10 +76,9 @@ export function ConsumablesPage({ canEdit, currency = 'Bs' }: { canEdit: boolean
   }, [includeArchived])
   useEffect(load, [load])
 
-  const visible = useMemo(
-    () => category === 'Todos' ? items : items.filter(x => x.category.toLowerCase() === category.toLowerCase()),
-    [items, category],
-  )
+  const brands = useMemo(() => [...new Set(items.map(item => item.name).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [items])
+  const materialsByType = useMemo(() => [...new Set(items.filter(item => category === 'Todos' || item.category.toLowerCase() === category.toLowerCase()).map(item => item.material).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [items, category])
+  const visible = useMemo(() => items.filter(item => (category === 'Todos' || item.category.toLowerCase() === category.toLowerCase()) && (!filterBrand || item.name === filterBrand) && (!filterMaterial || item.material === filterMaterial)), [items, category, filterBrand, filterMaterial])
 
   function currentGrams(item: Consumable) {
     return Number(item.stockGrams ?? (item.stockQuantity ?? 0) * 1000)
@@ -133,7 +135,8 @@ export function ConsumablesPage({ canEdit, currency = 'Bs' }: { canEdit: boolean
     <ErrorMessage error={error} /><SuccessMessage message={success} />
     <div className={`catalog-layout ${draft ? 'with-editor' : ''}`}>
       <section className="panel">
-        <div className="toolbar"><div className="segmented">{['Todos', 'Filamento', 'Resina'].map(x => <button key={x} className={category === x ? 'active' : ''} onClick={() => setCategory(x)}>{x}</button>)}</div><label className="check"><input type="checkbox" checked={includeArchived} onChange={e => setIncludeArchived(e.target.checked)} />Mostrar archivados</label></div>
+        <div className="toolbar"><div className="segmented">{['Todos', 'Filamento', 'Resina'].map(x => <button key={x} className={category === x ? 'active' : ''} onClick={() => { setCategory(x); setFilterMaterial('') }}>{x}</button>)}<button className={`filter-button ${filterBrand || filterMaterial ? 'active' : ''}`} onClick={() => setFilterOpen(true)} title="Filtrar consumibles"><Filter size={15} />Filtro{filterBrand || filterMaterial ? ' activo' : ''}</button></div><label className="check"><input type="checkbox" checked={includeArchived} onChange={e => setIncludeArchived(e.target.checked)} />Mostrar archivados</label></div>
+        {filterOpen && <div className="filter-popover panel"><div className="section-title"><div><p className="eyebrow">FILTRO DE INVENTARIO</p><h3>Mostrar consumibles</h3></div><button className="icon ghost" onClick={() => setFilterOpen(false)}><X size={17} /></button></div><div className="form-grid two"><label>Marca<select value={filterBrand} onChange={e => setFilterBrand(e.target.value)}><option value="">Todas las marcas</option>{brands.map(value => <option key={value} value={value}>{value}</option>)}</select></label><label>Tipo / material<select value={filterMaterial} onChange={e => setFilterMaterial(e.target.value)}><option value="">Todos los tipos</option>{materialsByType.map(value => <option key={value} value={value}>{value}</option>)}</select></label></div><div className="editor-actions"><button type="button" className="ghost" onClick={() => { setFilterBrand(''); setFilterMaterial('') }}>Limpiar</button><button type="button" onClick={() => setFilterOpen(false)}>Aplicar filtro</button></div></div>}
         {loading ? <Loading /> : visible.length === 0 ? <Empty>No hay consumibles en esta categoría.</Empty> : <div className="table-wrap"><table><thead><tr><th>Consumible</th><th>Tipo / color</th><th>Precio</th><th>Existencia</th><th>Estado</th>{canEdit && <th>Acciones</th>}</tr></thead><tbody>{visible.map(item => {
           const total = currentGrams(item)
           const threshold = Number(item.lowStockGrams ?? 1000)

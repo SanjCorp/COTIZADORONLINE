@@ -48,7 +48,7 @@ function Application({ profile, onProfileChange, onLogout }: { profile: Profile;
   const isSuperAdmin = profile.isSuperAdmin === true || profile.roles.includes('SuperAdmin')
   const [supremeMode, setSupremeMode] = useState<'technology' | 'makers'>(() => (sessionStorage.getItem('sanjcorp.mode') as 'technology' | 'makers') || 'technology')
   const isAdmin = isSuperAdmin || profile.roles.includes('Administrator')
-  const canCatalog = hasAnyRole(profile.roles, ['Administrator', 'Production', 'Maker'])
+  const canCatalog = isSuperAdmin || profile.roles.includes('Administrator') || profile.roles.includes('Production') || (profile.roles.includes('Maker') && profile.isMakerOwner === true)
   const canSale = isSuperAdmin || hasAnyRole(profile.roles, ['Administrator', 'Sales', 'Maker'])
   const goTo = (next: string) => { window.location.hash = next; setRoute(next); setMobileOpen(false) }
   const navigation: Array<{ key: PageKey; label: string; icon: typeof Gauge; admin?: boolean }> = [

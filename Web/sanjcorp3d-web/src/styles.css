@@ -266,6 +266,21 @@ tr.clickable { cursor: pointer; }
 .filters-panel .filters { margin: 0; }
 .sales-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: .8rem; }
 .report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.chart-toggle { display: inline-flex; gap: .2rem; padding: .2rem; border: 1px solid var(--line); border-radius: 9px; }
+.chart-toggle button { display: inline-flex; align-items: center; gap: .35rem; padding: .5rem .7rem; border: 0; background: transparent; color: var(--muted); border-radius: 6px; }
+.chart-toggle button.active { background: #16392f; color: var(--mint); }
+.pie-chart { display: grid; grid-template-columns: minmax(130px, 180px) 1fr; align-items: center; gap: 1rem; min-height: 180px; }
+.pie-visual { width: min(180px, 100%); aspect-ratio: 1; border-radius: 50%; box-shadow: inset 0 0 0 18px #0d1b17; }
+.line-chart { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(130px, .8fr); align-items: center; gap: 1rem; min-height: 180px; }
+.line-chart svg { width: 100%; height: 180px; overflow: visible; }
+.line-chart line { stroke: var(--line); stroke-width: 1; }
+.line-chart polyline { fill: none; stroke: var(--mint); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.line-chart circle { fill: var(--mint); stroke: #0d1b17; stroke-width: 2; }
+.chart-legend { display: grid; gap: .55rem; min-width: 0; }
+.chart-legend > div { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .4rem; font-size: .78rem; }
+.chart-legend > div > span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chart-legend > div > span:first-child { width: 9px; height: 9px; border-radius: 50%; }
+.chart-legend b { color: var(--text); white-space: nowrap; }
 .bars { display: grid; gap: .9rem; }
 .bar-row { display: grid; gap: .38rem; }
 .bar-label { display: flex; justify-content: space-between; gap: 1rem; color: #b9c9c4; font-size: .72rem; }

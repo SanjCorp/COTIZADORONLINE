@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Calculator, CheckCircle2, Download, Plus, RotateCcw, Save, ShoppingBag, Trash2 } from 'lucide-react'
+import { Calculator, CheckCircle2, Download, Plus, RotateCcw, Save, Search, ShoppingBag, Trash2, X } from 'lucide-react'
 import { api } from '../api'
 import type { BusinessSettings, Consumable, ConsumableUsage, ExtraMaterial, MaterialUsage, Printer, ProductCatalog, QuoteCalculation, QuoteRequest, QuoteSummary } from '../types'
 import { Empty, ErrorMessage, Loading, PageHeader, SuccessMessage, money, number, weight } from '../ui'
@@ -29,6 +29,10 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchText, setSearchText] = useState('')
+  const [searchResults, setSearchResults] = useState<QuoteSummary[]>([])
+  const [searching, setSearching] = useState(false)
 
   useEffect(() => {
     Promise.all([api.printers(), api.consumables(), api.materials(), api.settings(), api.products()])
@@ -91,6 +95,30 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
     finally { setBusy(false) }
   }
 
+  async function searchExisting() {
+    setSearching(true); setError('')
+    try { setSearchResults(await api.quotes({ search: searchText })) }
+    catch (reason) { setError((reason as Error).message) }
+    finally { setSearching(false) }
+  }
+
+  async function loadExisting(id: number) {
+    setBusy(true); setError('')
+    try {
+      const source = await api.quote(id)
+      const totalMinutes = Math.round(source.printHours * 60)
+      const printer = printers.find(item => item.name === source.printerName)
+      setForm({ customer: source.customer, customerPhone: source.customerPhone ?? '', projectName: source.projectName, printerId: printer?.id ?? printers[0]?.id ?? 0, hours: Math.floor(totalMinutes / 60), minutes: totalMinutes % 60, quantity: source.quantity, additionalManualCost: source.additionalManualCost, profitMultiplier: source.profitMultiplier, notes: source.notes })
+      setSelectedProduct(source.productName ?? '')
+      setConsumableLines(source.consumables.filter(line => consumableById.has(line.legacyConsumableId)).map(line => ({ consumableId: line.legacyConsumableId, grams: line.grams })))
+      setMaterialLines(source.materials.filter(line => materialById.has(line.legacyMaterialId)).map(line => ({ materialId: line.legacyMaterialId, quantity: line.quantity })))
+      setCalculation({ totalWeight: source.totalWeight, materialCost: source.materialCost, electricityCost: source.electricityCost, maintenanceCost: source.maintenanceCost, additionalCost: source.additionalCost, subtotal: source.subtotal, profitAmount: source.profitAmount, taxAmount: source.taxAmount, recommendedPrice: source.recommendedPrice })
+      setCustomPrice(source.recommendedPrice); setSaved(undefined); setSold(false); setSearchOpen(false)
+      setSuccess(`Datos de ${source.orderCode} cargados como una nueva cotización. Puedes modificarlos antes de guardar.`)
+    } catch (reason) { setError((reason as Error).message) }
+    finally { setBusy(false) }
+  }
+
   function clear() {
     setForm({ ...emptyForm, printerId: printers[0]?.id ?? 0, profitMultiplier: settings?.defaultProfitMultiplier ?? 3 })
     setConsumableLines([]); setMaterialLines([]); setCalculation(undefined); setSaved(undefined); setSold(false); setSelectedProduct(''); setCustomPrice(0); setError(''); setSuccess('')
@@ -100,8 +128,9 @@ export function QuotePage({ canWrite }: { canWrite: boolean }) {
   if (!canWrite) return <><PageHeader eyebrow="COTIZADOR" title="Nueva cotización" description="Cálculo de costos y precio recomendado." /><div className="panel locked-panel"><h2>Acceso de consulta</h2><p>Tu rol puede revisar el historial, pero no crear cotizaciones. Solicita al administrador el rol Ventas si necesitas esta función.</p></div></>
 
   return <>
-    <PageHeader eyebrow="COTIZADOR 3D" title="Nueva cotización" description="Registra los datos de impresión, combina consumibles y obtén el precio con la fórmula original." />
+    <PageHeader eyebrow="COTIZADOR 3D" title="Nueva cotización" description="Registra los datos de impresión, combina consumibles y obtén el precio con la fórmula original." actions={<button className="secondary" onClick={() => { setSearchOpen(value => !value); if (!searchOpen && searchResults.length === 0) void searchExisting() }}><Search size={17} />Buscar cotización o venta</button>} />
     <ErrorMessage error={error} /><SuccessMessage message={success} />
+    {searchOpen && <section className="panel quote-search-panel"><div className="section-title"><div><p className="eyebrow">REUTILIZAR DATOS</p><h2>Buscar cotizaciones y ventas</h2></div><button className="icon ghost" onClick={() => setSearchOpen(false)}><X size={18} /></button></div><div className="inline-form"><label className="search-field"><Search size={17} /><input value={searchText} onChange={e => setSearchText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void searchExisting() } }} placeholder="Código, cliente o producto…" /></label><button onClick={searchExisting} disabled={searching}>{searching ? 'Buscando…' : 'Buscar'}</button></div>{searching ? <Loading label="Buscando…" /> : searchResults.length === 0 ? <Empty>No se encontraron registros.</Empty> : <div className="line-list quote-search-results">{searchResults.map(item => <div className="line-item" key={item.id}><div><strong>{item.customer} · {item.productName || item.projectName}</strong><small>{item.orderCode} · {item.soldAtUtc ? 'Venta confirmada' : 'Cotización pendiente'} · {money(item.recommendedPrice, settings?.currencySymbol)}</small></div><button onClick={() => loadExisting(item.id)}>Cargar como nueva</button></div>)}</div>}</section>}
     {printers.length === 0 ? <div className="alert error">Elige al menos una impresora favorita desde el apartado Impresoras antes de cotizar.</div> : null}
     {consumables.length === 0 ? <div className="alert error">Necesitas al menos un consumible activo antes de cotizar.</div> : null}
     <div className="quote-layout">

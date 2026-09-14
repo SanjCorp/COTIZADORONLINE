@@ -60,6 +60,8 @@ function Application({ profile, onProfileChange, onLogout }: { profile: Profile;
     ...(isSuperAdmin ? [{ key: 'supreme' as PageKey, label: 'Administrar espacios', icon: ShieldCheck, admin: true }] : []),
   ]
   const visibleNavigation = isSuperAdmin ? [{ key: 'supreme' as PageKey, label: 'Administración', icon: ShieldCheck }] : navigation
+  const activeWorkspace = profile.workspaces?.find(x => x.id === (profile.tenantId ?? sessionStorage.getItem('sanjcorp.tenant')))
+  const receiptLogo = isSuperAdmin ? (profile.workspaces?.find(x => x.kind === 'technology')?.logoUrl ?? profile.logoUrl) : (activeWorkspace?.logoUrl ?? profile.logoUrl)
   let content
   switch (page) {
     case 'supreme': content = isSuperAdmin ? <SupremeAdminPage profile={profile} mode={supremeMode} /> : <DashboardPage goTo={goTo} />; break
@@ -68,14 +70,13 @@ function Application({ profile, onProfileChange, onLogout }: { profile: Profile;
     case 'printers': content = <PrintersPage canManage={isSuperAdmin} canFavorite={!isSuperAdmin} />; break
     case 'consumables': content = <ConsumablesPage canEdit={canCatalog} />; break
     case 'materials': content = <MaterialsPage canEdit={canCatalog} />; break
-    case 'history': content = <HistoryPage initialId={initialHistoryId} canSale={canSale} isAdmin={isAdmin} />; break
+    case 'history': content = <HistoryPage initialId={initialHistoryId} canSale={canSale} isAdmin={isAdmin} logoUrl={receiptLogo} businessName={activeWorkspace?.name ?? profile.tenantName ?? 'SanjCorp Technology'} />; break
     case 'reports': content = <ReportsPage />; break
     case 'users': content = isSuperAdmin ? <UsersPage /> : <DashboardPage goTo={goTo} />; break
     case 'settings': content = <SettingsPage profile={profile} isAdmin={isAdmin} onProfileChange={onProfileChange} />; break
     case 'help': content = <HelpPage />; break
     default: content = <DashboardPage goTo={goTo} />
   }
-  const activeWorkspace = profile.workspaces?.find(x => x.id === (profile.tenantId ?? sessionStorage.getItem('sanjcorp.tenant')))
   return <div className="app-shell">
     {mobileOpen && <button className="sidebar-scrim" aria-label="Cerrar menú" onClick={() => setMobileOpen(false)} />}
     <aside className={`sidebar ${mobileOpen ? 'open' : ''}`}><div className="sidebar-brand"><div className="brand-mark small-mark"><Boxes size={23} /></div><div><strong>{isSuperAdmin ? 'ADMINISTRACIÓN' : 'SANJ CORP'}</strong><span>{isSuperAdmin ? 'PANEL SUPREMO' : '3D OPERATIONS'}</span></div><button className="icon mobile-close" onClick={() => setMobileOpen(false)}><X size={20} /></button></div><nav>{visibleNavigation.map(({ key, label, icon: Icon }) => <button key={key} className={page === key ? 'active' : ''} onClick={() => goTo(key)}><Icon size={18} /><span>{label}</span></button>)}</nav><div className="sidebar-footer"><div className="signed-user"><div className="avatar">{(profile.profilePhotoUrl || activeWorkspace?.logoUrl) ? <img src={profile.profilePhotoUrl || activeWorkspace?.logoUrl} alt="Logo del espacio" /> : profile.displayName.slice(0, 2).toUpperCase()}</div><div><strong>{profile.displayName}</strong><span>{isSuperAdmin ? 'Administrador supremo' : profile.roles.map(roleLabel).join(' · ')}</span></div></div><button className="logout" onClick={onLogout}><LogOut size={17} />Cerrar sesión</button></div></aside>
